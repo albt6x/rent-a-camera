@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>Pembayaran Dikonfirmasi</title></head>
+  <body style="font-family: Arial, sans-serif; color:#222;">
+    <div style="max-width:680px;margin:0 auto;padding:16px;">
+      <h2 style="color:#28a745">Pembayaran Dikonfirmasi — Rentalkuy</h2>
+      <p>Halo {{ borrower.username }},</p>
+
+      <p>
+        Pembayaran untuk reservasi <strong>#{{ rental.id }}</strong> telah kami terima dan konfirmasi.
+        Barang akan siap untuk diambil sesuai jadwal.
+      </p>
+
+      <p><strong>Detail:</strong><br/>
+        Tanggal Ambil: {{ rental.pickup_date.strftime('%d-%m-%Y') if rental.pickup_date else '-' }}<br/>
+        Total: Rp {{ "{:,.0f}".format(rental.total_price|float) if rental.total_price else '-' }}
+      </p>
+
+      <p>
+        Anda dapat melihat status pesanan di: <a href="{{ url_for('admin.manage_reservations', _external=True) }}">Status Reservasi</a>.
+      </p>
+
+      <hr/>
+      <p style="color:#666;font-size:0.9rem;">
+        Terima kasih telah menggunakan Rentalkuy.
+      </p>
+    </div>
+  </body>
+</html>

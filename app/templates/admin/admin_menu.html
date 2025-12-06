@@ -1,0 +1,43 @@
+{# templates/admin/admin_menu.html - full replace #}
+<div class="list-group list-group-flush p-3">
+
+   <!-- MANJEMEN RESERVASI – primary dashboard (single link) -->
+   <a href="{{ url_for('admin.manage_reservations') }}"
+      class="list-group-item list-group-item-action
+      {% if request.endpoint.startswith('admin.manage_reservations') or request.endpoint == 'staff.dashboard' %}active{% endif %}">
+      Manajemen Reservasi
+   </a>
+
+   {% if current_user.role == 'admin' %}
+       <!-- Admin-only links -->
+       <a href="{{ url_for('admin.manage_items') }}"
+          class="list-group-item list-group-item-action
+          {% if request.endpoint.startswith('admin.manage_items') or request.endpoint.startswith('admin.add_item') or request.endpoint.startswith('admin.edit_item') %}active{% endif %}">
+          Manajemen Barang (Items)
+       </a>
+
+       <a href="{{ url_for('admin.manage_staff') }}"
+          class="list-group-item list-group-item-action
+          {% if request.endpoint.startswith('admin.manage_staff') or request.endpoint.startswith('admin.edit_user') %}active{% endif %}">
+          Manajemen Staf
+       </a>
+   {% endif %}
+
+   {# Staff-only links: tampilkan HANYA jika user benar-benar staff (bukan admin) #}
+   {% if current_user.role == 'staff' %}
+     <a href="{{ url_for('staff.view_items') }}"
+        class="list-group-item list-group-item-action
+        {% if request.endpoint.startswith('staff.view_items') %}active{% endif %}">
+        Daftar Barang
+     </a>
+
+     <a href="{{ url_for('staff.daily_report') }}"
+        class="list-group-item list-group-item-action
+        {% if request.endpoint.startswith('staff.daily_report') %}active{% endif %}">
+        Laporan Harian
+     </a>
+
+     {# Optional: bila ingin link dashboard staff terpisah, tambahkan di sini. 
+        Kalau Manajemen Reservasi sudah jadi "primary" untuk staff, bisa di-omit. #}
+   {% endif %}
+</div>

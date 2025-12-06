@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top: 76px;">
+    {% include 'flash_messages.html' %}
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="mb-4">Riwayat Peminjaman Saya</h2>
+                    <p>Di sini Anda bisa melacak status semua pesanan Anda.</p>
+                    
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th scope="col">ID Pesanan</th>
+                                <th scope="col">Tgl Ambil</th>
+                                <th scope="col">Total Harga</th>
+                                <th scope="col">Status Order</th>
+                                <th scope="col">Status Bayar</th>
+                                <th scope="col">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rental in rentals %}
+                            <tr>
+                                <td><strong>#{{ rental.id }}</strong></td>
+                                <td>{{ rental.pickup_date.strftime('%d-%m-%Y') }}</td>
+                                <td>Rp {{ "{:,.0f}".format(rental.total_price) }}</td>
+                                <td>
+                                    {% if rental.order_status == 'Ditinjau' %}
+                                        <span class="badge bg-warning text-dark">{{ rental.order_status }}</span>
+                                    {% elif rental.order_status == 'ACC' %}
+                                        <span class="badge bg-success">{{ rental.order_status }}</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">{{ rental.order_status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if rental.payment_status == 'Ditinjau' %}
+                                        <span class="badge bg-secondary">{{ rental.payment_status }}</span>
+                                    {% elif rental.payment_status == 'Belum Bayar' %}
+                                        <span class="badge bg-warning text-dark">{{ rental.payment_status }}</span>
+                                    {% elif rental.payment_status == 'Menunggu Konfirmasi' %}
+                                        <span class="badge bg-info text-dark">{{ rental.payment_status }}</span>
+                                    {% else %}
+                                        <span class="badge bg-success">{{ rental.payment_status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if rental.order_status == 'ACC' and rental.payment_status == 'Belum Bayar' %}
+                                        <a href="{{ url_for('booking.upload_payment', rental_id=rental.id) }}" class="btn btn-sm btn-success">
+                                            Bayar Sekarang
+                                        </a>
+                                    {% elif rental.payment_status == 'Menunggu Konfirmasi' %}
+                                        <span class="text-muted">Menunggu...</span>
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            
+                            {% if not rentals %}
+                            <tr>
+                                <td colspan="6" class="text-center">Anda belum memiliki riwayat peminjaman.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock content %}

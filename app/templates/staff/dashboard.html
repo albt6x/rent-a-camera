@@ -1,0 +1,202 @@
+{# templates/staff/dashboard.html - new staff dashboard (FULL REPLACE) #}
+{% extends 'base.html' %}
+{% block title %}Staff Dashboard{% endblock %}
+
+{% block content %}
+{# === Safety: hide/disable any status-filter UI if it exists in includes ===
+   - This hides any element with class "filter-status" and disables elements
+     with class "status-filter-btn" or ".filter-status a".
+   - Use this when you want to remove the filter UI quickly without hunting
+     all includes/routes. Remove these styles/scripts later if you want to
+     restore the filter UI properly.
+#}
+<style>
+  /* completely hide any filter status block if present */
+  .filter-status,
+  .filter-status-row,
+  .rentals-filter {
+    display: none !important;
+  }
+
+  /* also make any status-filter button non-interactive as fallback */
+  .status-filter-btn,
+  .filter-status .btn,
+  .filter-status a {
+    pointer-events: none !important;
+    opacity: 0.9 !important;
+    cursor: default !important;
+  }
+</style>
+
+<div class="admin-sidebar">
+  {% include 'staff/staff_menu.html' %}
+</div>
+
+<main class="admin-content">
+  {% include 'flash_messages.html' %}
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="mb-0">Dashboard Staf</h2>
+      <p class="text-muted mb-0">Ringkasan reservasi dan tindakan cepat untuk staf.</p>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-3">
+      <div class="card p-3">
+        <div class="h6">Pickup Hari Ini</div>
+        <div class="display-6 fw-bold">{{ pickups_today if pickups_today is defined else 0 }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3">
+        <div class="h6">Return (Selesai)</div>
+        <div class="display-6 fw-bold">{{ returns_today if returns_today is defined else 0 }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3">
+        <div class="h6">Pending (Ditinjau)</div>
+        <div class="display-6 fw-bold">{{ pending_count if pending_count is defined else 0 }}</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card p-3">
+        <div class="h6">Upcoming (7 hari)</div>
+        <div class="display-6 fw-bold">{{ upcoming_count if upcoming_count is defined else 0 }}</div>
+      </div>
+    </div>
+  </div>
+
+  {# Table of rentals (if provided) #}
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Pemesan</th>
+              <th>Tgl Ambil</th>
+              <th>Total Harga</th>
+              <th>Status Order</th>
+              <th>Status Bayar</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if rentals and rentals.items %}
+              {% for rental in rentals.items %}
+              <tr>
+                <td>#{{ rental.id }}</td>
+                <td>{{ rental.borrower.username if rental.borrower else '-' }}</td>
+                <td>{{ rental.pickup_date.strftime('%d-%m-%Y') if rental.pickup_date else '-' }}</td>
+                <td>Rp {{ '{:,.0f}'.format(rental.total_price or 0) }}</td>
+
+                <td>
+                  {% if rental.order_status == 'Ditinjau' %}
+                    <span class="badge bg-warning text-dark">Ditinjau</span>
+                  {% elif rental.order_status == 'ACC' %}
+                    <span class="badge bg-success">ACC</span>
+                  {% elif rental.order_status == 'Ditolak' %}
+                    <span class="badge bg-danger">Ditolak</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ rental.order_status }}</span>
+                  {% endif %}
+                </td>
+
+                <td>
+                  {% set sb = rental.payment_status or '' %}
+                  {% if sb == 'Belum Bayar' %}
+                    <span class="badge bg-warning text-dark">Belum Bayar</span>
+                  {% elif sb == 'Menunggu Konfirmasi' %}
+                    <span class="badge bg-info text-dark">Menunggu Konfirmasi</span>
+                  {% elif sb == 'Pengambilan' %}
+                    <span class="badge bg-primary">Pengambilan</span>
+                  {% elif sb == 'Selesai' %}
+                    <span class="badge bg-success">Selesai</span>
+                  {% else %}
+                    <span class="badge bg-light text-muted">{{ sb }}</span>
+                  {% endif %}
+                </td>
+
+                <td>
+                  {% if rental.order_status == 'Ditinjau' %}
+                    <form method="POST" action="{{ url_for('admin.approve_rental', rental_id=rental.id) }}" class="d-inline">
+                      <button class="btn btn-sm btn-success me-1">ACC</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin.reject_rental', rental_id=rental.id) }}" class="d-inline">
+                      <button class="btn btn-sm btn-danger">Tolak</button>
+                    </form>
+                  {% elif rental.order_status == 'ACC' %}
+                    {% if rental.payment_status == 'Menunggu Konfirmasi' %}
+                      <form method="POST" action="{{ url_for('admin.confirm_payment', rental_id=rental.id) }}" class="d-inline">
+                        <button class="btn btn-sm btn-success me-1">Konfirmasi</button>
+                      </form>
+                    {% elif rental.payment_status == 'Pengambilan' %}
+                      <form method="POST" action="{{ url_for('admin.mark_as_returned', rental_id=rental.id) }}" class="d-inline">
+                        <button class="btn btn-sm btn-primary">Tandai Selesai</button>
+                      </form>
+                    {% else %}
+                      <small class="text-muted">--</small>
+                    {% endif %}
+                  {% else %}
+                    <small class="text-muted">--</small>
+                  {% endif %}
+                </td>
+
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="7" class="text-center py-4">Belum ada reservasi.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# pagination if provided #}
+  {% if rentals and rentals.pages and rentals.pages > 1 %}
+    <nav class="mt-3">
+      <ul class="pagination justify-content-center">
+        {% if rentals.has_prev %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('staff.dashboard', page=rentals.prev_num) }}">Previous</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Previous</span></li>
+        {% endif %}
+        {% set start = rentals.page - 2 if rentals.page - 2 > 0 else 1 %}
+        {% set end = rentals.page + 2 if rentals.page + 2 <= rentals.pages else rentals.pages %}
+        {% for p in range(start, end + 1) %}
+          <li class="page-item {% if p == rentals.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('staff.dashboard', page=p) }}">{{ p }}</a>
+          </li>
+        {% endfor %}
+        {% if rentals.has_next %}
+          <li class="page-item"><a class="page-link" href="{{ url_for('staff.dashboard', page=rentals.next_num) }}">Next</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Next</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+
+</main>
+
+{# Extra JS fallback: disable clicks on any filter elements if still present from other includes #}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // disable anchors/buttons that may still exist
+    document.querySelectorAll('.status-filter-btn, .filter-status a, .filter-status button').forEach(el => {
+      el.removeAttribute('href');
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+      });
+      el.style.pointerEvents = 'none';
+      el.style.cursor = 'default';
+      el.style.opacity = '0.95';
+    });
+  });
+</script>
+{% endblock %}

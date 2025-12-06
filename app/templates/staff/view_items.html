@@ -1,0 +1,45 @@
+{# templates/staff/view_items.html - full replace #}
+{% extends 'base.html' %}
+{% block title %}Daftar Barang{% endblock %}
+
+{% block content %}
+<div class="admin-sidebar">
+  {% include 'staff/staff_menu.html' %}
+</div>
+
+<main class="admin-content">
+  <div class="container-fluid py-3">
+    <h2 class="mb-3">Daftar Barang (View Only)</h2>
+    <div class="card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-striped align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Nama</th>
+                <th>Kategori</th>
+                <th>Stok</th>
+                <th>Harga / Hari</th>
+                <th>Harga / Jam</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for it in items %}
+              <tr>
+                <td>{{ it.name }}</td>
+                <td>{{ it.category.name if it.category else '-' }}</td>
+                <td>{{ it.stock }}</td>
+                <td>Rp {{ '{:,.0f}'.format(it.price_per_day or 0) }}</td>
+                <td>Rp {{ '{:,.0f}'.format(it.price_per_hour or 0) }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5" class="text-center">Belum ada barang.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}

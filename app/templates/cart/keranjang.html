@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Keranjang Belanja{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top: 76px;">
+    {% include 'flash_messages.html' %}
+
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-1">Keranjang Belanja</h1>
+            <p class="text-muted mb-0">
+                Cek kembali barang yang ingin Anda sewa sebelum membuat pesanan.
+            </p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- KOLOM KIRI: DAFTAR ITEM -->
+        <div class="col-lg-8">
+            {% if items_in_cart %}
+                {% for cart_item in items_in_cart %}
+                    {% set item = cart_item.item %}
+                    <div class="card shadow-sm mb-3 border-0">
+                        <div class="card-body d-flex flex-column flex-md-row align-items-start">
+                            <!-- Gambar kecil -->
+                            <div class="me-md-3 mb-3 mb-md-0">
+                                <img src="{{ url_for('static', filename='uploads/items/' + item.image_filename) }}"
+                                     alt="{{ item.name }}"
+                                     style="width: 120px; height: 80px; object-fit: cover; border-radius: 0.5rem;">
+                            </div>
+
+                            <!-- Detail item -->
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <div>
+                                        <h5 class="mb-1">{{ item.name }}</h5>
+                                        <span class="badge bg-light text-muted border">
+                                            {{ item.category.name }}
+                                        </span>
+                                    </div>
+
+                                    <!-- Tombol hapus -->
+                                    <form method="GET"
+                                          action="{{ url_for('cart.remove_from_cart', key=cart_item.key) }}">
+                                        <button type="submit"
+                                                class="btn btn-sm btn-outline-danger"
+                                                title="Hapus dari keranjang">
+                                            &times;
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <!-- Info durasi & harga -->
+                                <div class="d-flex flex-wrap align-items-center small text-muted mb-2">
+                                    {% if cart_item.duration_hours == 24 %}
+                                        <span class="me-3">
+                                            ⏱ Durasi sewa: <strong>24 Jam</strong>
+                                        </span>
+                                    {% elif cart_item.duration_hours == 12 %}
+                                        <span class="me-3">
+                                            ⏱ Durasi sewa: <strong>12 Jam</strong>
+                                        </span>
+                                    {% else %}
+                                        <span class="me-3">
+                                            ⏱ Durasi sewa: <strong>{{ cart_item.duration_hours }} Jam</strong>
+                                        </span>
+                                    {% endif %}
+
+                                    <span class="me-3">
+                                        💰 Harga per 24 jam:
+                                        <strong>Rp {{ "{:,.0f}".format(item.price_per_day|float) }}</strong>
+                                    </span>
+
+                                    <span>
+                                        📦 Stok tersedia:
+                                        <strong>{{ item.stock }}</strong>
+                                    </span>
+                                </div>
+
+                                <!-- Total untuk item ini -->
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-muted small">
+                                        Total untuk item ini
+                                    </div>
+                                    <div class="fw-bold">
+                                        Rp {{ "{:,.0f}".format(cart_item.price|float) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="card shadow-sm border-0">
+                    <div class="card-body text-center py-5">
+                        <p class="mb-2 fs-5">Keranjang Anda masih kosong.</p>
+                        <p class="text-muted mb-4">
+                            Silakan pilih kamera, drone, atau lighting dari halaman katalog terlebih dahulu.
+                        </p>
+                        <a href="{{ url_for('catalog.list_items') }}" class="btn btn-primary">
+                            Lihat Katalog
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- KOLOM KANAN: RINGKASAN PESANAN -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Ringkasan Pesanan</h5>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">Subtotal</span>
+                        <span class="fw-bold">
+                            Rp {{ "{:,.0f}".format(subtotal|float) }}
+                        </span>
+                    </div>
+
+                    <hr>
+
+                    <!-- FORM CHECKOUT: POST KE URL YANG SAMA -->
+                    <form method="POST" action="">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.pickup_date.label(class="form-label") }}
+                            {{ form.pickup_date(class="form-control" + (" is-invalid" if form.pickup_date.errors else "")) }}
+                            {% if form.pickup_date.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.pickup_date.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="form-text">
+                                    Pilih tanggal pengambilan barang di toko.
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-success btn-lg", value="Place Order Now") }}
+                        </div>
+                    </form>
+
+                    <hr class="mt-4">
+
+                    <div class="small text-muted">
+                        <p class="mb-1">
+                            📍 Pengambilan di toko: <strong>RentalKuy</strong>
+                        </p>
+                        <p class="mb-1">
+                            ⏰ Jam operasional: 09.00 – 21.00 WIB
+                        </p>
+                        <p class="mb-0">
+                            🪪 Harap membawa KTP asli saat pengambilan. Keterlambatan pengembalian akan
+                            dikenakan denda sesuai kebijakan toko.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock content %}

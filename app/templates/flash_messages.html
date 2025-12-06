@@ -1,0 +1,59 @@
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+
+<style>
+  /* Container di pojok kanan atas */
+  .flash-container {
+    position: fixed;
+    top: 80px;              /* sesuaikan kalau ketabrak navbar */
+    right: 20px;
+    z-index: 1080;          /* di atas card dan navbar */
+    max-width: 420px;
+  }
+
+  .flash-message {
+    margin-bottom: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  .flash-message.hide {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+</style>
+
+<div class="flash-container">
+  {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show flash-message" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+</div>
+
+<script>
+  (function () {
+    // Auto-hide semua flash message setelah beberapa detik
+    const alerts = document.querySelectorAll('.flash-message');
+    alerts.forEach(function (alert) {
+      // Berapa lama sebelum mulai menghilang (ms)
+      const displayTime = 4000; // 4 detik
+
+      setTimeout(function () {
+        // Tambah class hide untuk animasi smooth
+        alert.classList.add('hide');
+
+        // Hapus dari DOM setelah animasi selesai
+        setTimeout(function () {
+          if (alert && alert.parentNode) {
+            alert.parentNode.removeChild(alert);
+          }
+        }, 450); // durasi sama dengan CSS transition
+      }, displayTime);
+    });
+  })();
+</script>
+
+{% endif %}
+{% endwith %}

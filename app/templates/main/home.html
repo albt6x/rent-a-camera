@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Selamat Datang!{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top: 76px;"> 
+    {% include 'flash_messages.html' %}
+    
+    <div class="p-5 mb-4 bg-white rounded-3 shadow-sm">
+      <div class="container-fluid py-5">
+        <h1 class="display-5 fw-bold">
+          Selamat Datang, 
+          {% if current_user.is_authenticated %}
+              {{ current_user.username }}!
+          {% else %}
+              Tamu!
+          {% endif %}
+        </h1>
+        <p class="col-md-8 fs-4">
+          Ini adalah halaman utama website rental kamera, drone, dan lighting kita.
+          Lihat barang-barang terbaru di bawah ini!
+        </p>
+        <a href="{{ url_for('catalog.list_items') }}" class="btn btn-primary btn-lg">
+          Lihat Semua Katalog
+        </a>
+      </div>
+    </div>
+
+    <hr class="my-4">
+    <h2 class="mb-4">Barang Terbaru Kami</h2>
+    
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        
+        {% for item in latest_items %}
+        <div class="col">
+            <div class="card flip-card shadow-sm h-100">
+                <div class="flip-card-inner">
+                    
+                    <div class="flip-card-front">
+                        <img src="{{ url_for('static', filename='uploads/items/' + item.image_filename) }}" 
+                             class="card-img-top" 
+                             alt="{{ item.name }}" 
+                             style="height: 200px; object-fit: cover;">
+                        
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">{{ item.name }}</h5>
+                            <p class="card-text text-muted small mb-1">{{ item.category.name }}</p>
+
+                            {# Price display: simpan base price di data-base (float) supaya JS gampang kalkulasi #}
+                            <p class="card-text fw-bold price-display"
+                               data-base="{{ item.price_per_day|float }}">
+                                {{ ("Rp {:,.0f}").format(item.price_per_day|float) }}
+                                <small class="text-muted">/ 24 Jam</small>
+                            </p>
+                            
+                            <!-- Tombol Detail -->
+                            <button class="btn btn-sm detail-spec-btn flip-trigger mb-3 w-100">
+                                Lihat Detail Spesifikasi
+                            </button>
+
+                            <div class="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                                <!-- PREVIEW-ONLY Buttons: tidak submit ke cart (home preview) -->
+                                <button type="button"
+                                        class="btn btn-sm duration-preview me-2"
+                                        data-price="{{ item.price_per_day|float }}"
+                                        data-duration="12"
+                                        title="Harga 12 Jam">
+                                    12 Jam
+                                </button>
+
+                                <button type="button"
+                                        class="btn btn-sm duration-preview"
+                                        data-price="{{ item.price_per_day|float }}"
+                                        data-duration="24"
+                                        title="Harga 24 Jam">
+                                    24 Jam
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flip-card-back">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">{{ item.name }}</h5>
+                            <hr>
+                            <p class="item-description" style="font-size: 0.85rem; flex-grow: 1;">
+                                {{ item.description }}
+                            </p>
+                            <button class="btn btn-sm btn-outline-secondary flip-trigger mt-auto">
+                                Kembali ke Gambar
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% if not latest_items %}
+            <div class="col-12 mt-4">
+                <div class="alert alert-warning text-center">
+                    Belum ada barang tersedia saat ini.  
+                    Silakan cek kembali nanti atau hubungi admin.
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+</main>
+{% endblock content %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    // Fungsi format rupiah (menggunakan locale browser)
+    function formatRupiah(num) {
+      // pastikan number
+      const n = Number(num);
+      if (isNaN(n)) return "Rp 0";
+      return "Rp " + n.toLocaleString("id-ID");
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      // Cari semua tombol preview durasi di home
+      const previewButtons = document.querySelectorAll(".duration-preview");
+
+      previewButtons.forEach(btn => {
+        btn.addEventListener("click", function (e) {
+          // Ambil durasi yang diminta (12 atau 24)
+          const duration = parseInt(this.dataset.duration) || 24;
+
+          // Cari card terdekat
+          const card = this.closest(".card");
+          if (!card) return;
+
+          // Ambil elemen price-display di dalam card
+          const priceEl = card.querySelector(".price-display");
+          if (!priceEl) return;
+
+          // Ambil harga dasar dari data-base (sudah di-cast ke float di template)
+          const base = Number(priceEl.dataset.base);
+          if (isNaN(base)) return;
+
+          // Hitung harga baru (proporsional)
+          const newPrice = base * (duration / 24);
+
+          // Update tampilan harga (tanpa submit)
+          priceEl.innerHTML = `${formatRupiah(newPrice)} <small class="text-muted">/ ${duration} Jam</small>`;
+
+          // (opsional) beri tanda aktif pada tombol yang dipilih
+          const siblingBtns = card.querySelectorAll(".duration-preview");
+          siblingBtns.forEach(b => b.classList.remove("active-duration"));
+          this.classList.add("active-duration");
+        });
+      });
+    });
+  </script>
+
+  <style>
+    /* visual kecil: tombol active jadi berwarna */
+    .duration-preview.active-duration {
+      background-color: #0d6efd;
+      color: #fff;
+      border-color: #0d6efd;
+    }
+  </style>
+{% endblock scripts %}

@@ -1,0 +1,82 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+
+<div class="container mt-5" style="max-width: 600px;">
+  <h2 class="mb-4 text-center">Aktivasi Two-Factor Authentication (2FA)</h2>
+
+  <div class="card shadow">
+    <div class="card-body">
+
+      <p>
+        Scan QR code di bawah menggunakan aplikasi seperti
+        <strong>Google Authenticator</strong>, <strong>Authy</strong>, atau <strong>Microsoft Authenticator</strong>.
+      </p>
+
+      {% if qr_base64 %}
+      <div class="text-center my-3">
+        <img src="{{ qr_base64 }}" alt="QR Code 2FA" class="img-fluid" style="max-width: 260px;">
+      </div>
+      {% else %}
+      <div class="alert alert-warning text-center">QR code tidak tersedia. Gunakan provisioning URI atau coba generate ulang.</div>
+      {% endif %}
+
+      <hr>
+
+      {% if secret %}
+      <p><strong>Secret Key (Backup)</strong></p>
+      <div class="alert alert-secondary" style="word-break:break-all;">
+        {{ secret }}
+      </div>
+      <p class="small text-muted">
+        Simpan secret ini di tempat aman (cadangan). Jangan bagikan ke orang lain.
+      </p>
+      <hr>
+      {% endif %}
+
+      {% if provisioning_uri %}
+      <p><strong>Provisioning URI (opsional)</strong></p>
+      <div class="alert alert-light" style="font-size: 0.85rem; word-break:break-all;">
+        {{ provisioning_uri }}
+      </div>
+      <hr>
+      {% endif %}
+
+      <h5 class="mt-4">Konfirmasi Aktivasi 2FA</h5>
+      <p>
+        Setelah Anda scan QR di aplikasi autentikator, masukkan kode 6 digit yang muncul.
+      </p>
+
+      <form method="POST" action="{{ url_for('twofa.twofa_confirm', user_id=user.id) }}">
+        {{ csrf_token() }}
+
+        {% if secret %}
+        <input type="hidden" name="secret" value="{{ secret }}">
+        {% endif %}
+
+        <div class="mb-3">
+          <label for="code" class="form-label">Kode 6 Digit</label>
+          <input
+            type="tel"
+            inputmode="numeric"
+            pattern="\d{6}"
+            class="form-control"
+            id="code"
+            name="code"
+            placeholder="123456"
+            required
+            autocomplete="one-time-code"
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">Aktifkan 2FA</button>
+      </form>
+
+      <div class="mt-3 text-center">
+        <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn btn-link small">Kembali ke profil</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

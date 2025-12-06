@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Manajemen Reservasi{% endblock %}
+
+{% block content %}
+<div class="admin-sidebar">
+    {% include 'admin/admin_menu.html' %}
+</div>
+
+<main class="admin-content">
+    {% include 'flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="mb-2">Manajemen Reservasi</h2>
+            <p class="text-muted mb-3">
+                Di sini Anda bisa melihat semua pesanan yang masuk dan mengubah statusnya.
+            </p>
+
+            <!-- FILTER STATUS -->
+            <div class="d-flex flex-wrap align-items-center mb-3">
+                <span class="me-2 small text-muted">Filter Status:</span>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Filter status">
+                    <a href="{{ url_for('admin.manage_reservations', status='all') }}"
+                       class="btn btn-outline-secondary {% if current_status == 'all' %}active{% endif %}">
+                        Semua
+                    </a>
+                    <a href="{{ url_for('admin.manage_reservations', status='ditinjau') }}"
+                       class="btn btn-outline-secondary {% if current_status == 'ditinjau' %}active{% endif %}">
+                        Ditinjau
+                    </a>
+                    <a href="{{ url_for('admin.manage_reservations', status='acc') }}"
+                       class="btn btn-outline-secondary {% if current_status == 'acc' %}active{% endif %}">
+                        ACC
+                    </a>
+                    <a href="{{ url_for('admin.manage_reservations', status='ditolak') }}"
+                       class="btn btn-outline-secondary {% if current_status == 'ditolak' %}active{% endif %}">
+                        Ditolak
+                    </a>
+                    <a href="{{ url_for('admin.manage_reservations', status='selesai') }}"
+                       class="btn btn-outline-secondary {% if current_status == 'selesai' %}active{% endif %}">
+                        Selesai
+                    </a>
+                </div>
+            </div>
+
+            <!-- TABEL RESERVASI -->
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Pemesan</th>
+                            <th>Tgl Ambil</th>
+                            <th>Total Harga</th>
+                            <th>Status Order</th>
+                            <th>Status Bayar</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if rentals %}
+                            {% for rental in rentals %}
+                            <tr>
+                                <td>#{{ rental.id }}</td>
+
+                                <!-- PEMESAN -->
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if rental.borrower and rental.borrower.image_file %}
+                                            <img src="{{ url_for('static', filename='uploads/profile_pics/' + rental.borrower.image_file) }}"
+                                                 class="rounded-circle me-2"
+                                                 width="28" height="28" style="object-fit: cover;">
+                                        {% endif %}
+                                        <span>{{ rental.borrower.username if rental.borrower else '-' }}</span>
+                                    </div>
+                                </td>
+
+                                <!-- TGL AMBIL -->
+                                <td>
+                                    {% if rental.pickup_date %}
+                                        {{ rental.pickup_date.strftime('%d-%m-%Y') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+
+                                <!-- TOTAL HARGA -->
+                                <td>
+                                    {% if rental.total_price is not none %}
+                                        Rp {{ "{:,.0f}".format(rental.total_price|float) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+
+                                <!-- STATUS ORDER -->
+                                <td>
+                                    {% set so = rental.order_status or '' %}
+                                    {% if so == 'Ditinjau' %}
+                                        <span class="badge bg-warning text-dark">Ditinjau</span>
+                                    {% elif so == 'ACC' %}
+                                        <span class="badge bg-success">ACC</span>
+                                    {% elif so == 'Ditolak' %}
+                                        <span class="badge bg-danger">Ditolak</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ so }}</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- STATUS BAYAR -->
+                                <td>
+                                    {% set sb = rental.payment_status or '' %}
+                                    {% if sb == 'Belum Bayar' %}
+                                        <span class="badge bg-warning text-dark">Belum Bayar</span>
+                                    {% elif sb == 'Menunggu Konfirmasi' %}
+                                        <span class="badge bg-info text-dark">Menunggu Konfirmasi</span>
+                                    {% elif sb == 'Pengambilan' %}
+                                        <span class="badge bg-primary">Pengambilan</span>
+                                    {% elif sb == 'Selesai' %}
+                                        <span class="badge bg-success">Selesai</span>
+                                    {% elif sb == 'Dibatalkan' %}
+                                        <span class="badge bg-secondary">Dibatalkan</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted">{{ sb }}</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- AKSI -->
+                                <td>
+                                    {% if rental.order_status == 'Ditinjau' %}
+                                        <!-- Admin/staf bisa ACC atau Tolak -->
+                                        <form method="POST" action="{{ url_for('admin.approve_rental', rental_id=rental.id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-success">ACC</button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('admin.reject_rental', rental_id=rental.id) }}" class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-danger">Tolak</button>
+                                        </form>
+
+                                    {% elif rental.order_status == 'ACC' %}
+                                        {% if rental.payment_status == 'Belum Bayar' %}
+                                            <small class="text-muted">Menunggu pembayaran...</small>
+
+                                        {% elif rental.payment_status == 'Menunggu Konfirmasi' %}
+                                            <!-- Di sini bisa ditambahkan link "Lihat Bukti" jika ada route khusus -->
+                                            <form method="POST" action="{{ url_for('admin.confirm_payment', rental_id=rental.id) }}" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-success">Konfirmasi</button>
+                                            </form>
+
+                                        {% elif rental.payment_status == 'Pengambilan' %}
+                                            <form method="POST" action="{{ url_for('admin.mark_as_returned', rental_id=rental.id) }}" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-primary">Tandai Selesai</button>
+                                            </form>
+
+                                        {% elif rental.payment_status == 'Selesai' %}
+                                            <small class="text-muted">Selesai</small>
+
+                                        {% else %}
+                                            <small class="text-muted">-</small>
+                                        {% endif %}
+
+                                    {% else %}
+                                        <!-- Jika Ditolak atau status lain -->
+                                        <small class="text-muted">--</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center fw-semibold py-4">
+                                    Belum ada reservasi yang masuk.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+</main>
+{% endblock content %}

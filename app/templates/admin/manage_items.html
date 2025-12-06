@@ -1,0 +1,110 @@
+{# templates/admin/manage_items.html - replace to use shared admin menu #}
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="admin-sidebar">
+  {% include 'admin/admin_menu.html' %}
+</div>
+
+<main class="admin-content">
+  {% include 'flash_messages.html' %}
+
+  <div class="card mb-4">
+    <div class="card-body d-flex justify-content-between align-items-center">
+      <div>
+        <h4 class="mb-0">Manajemen Barang</h4>
+        <small class="text-muted">Kelola semua item yang tersedia</small>
+      </div>
+
+      <div>
+        <a href="{{ url_for('admin.add_item') }}" class="btn btn-success">+ Tambah Barang</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width:90px">Gambar</th>
+              <th>Nama Barang</th>
+              <th>Kategori</th>
+              <th>Harga / Hari</th>
+              <th>Stok</th>
+              <th style="width:180px">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if items and items.items %}
+              {% for item in items.items %}
+              <tr>
+                <td>
+                  <img src="{{ url_for('static', filename='uploads/items/' + (item.image_filename or 'default_item.jpg')) }}"
+                       alt="{{ item.name }}" style="width:72px; height:72px; object-fit:cover; border-radius:6px;">
+                </td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.category.name if item.category else '-' }}</td>
+                <td>Rp {{ "{:,.0f}".format(item.price_per_day|float) }}</td>
+                <td>{{ item.stock }}</td>
+                <td>
+                  <a href="{{ url_for('admin.edit_item', item_id=item.id) }}" class="btn btn-sm btn-warning me-1">Edit</a>
+
+                  <form method="POST" action="{{ url_for('admin.delete_item', item_id=item.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-danger"
+                            onclick="return confirm('Hapus barang ini? Tindakan ini tidak bisa dibatalkan.');">
+                      Hapus
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="6" class="text-center py-4">
+                  Tidak ada barang untuk ditampilkan.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# Pagination #}
+  {% if items and items.pages > 1 %}
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+      <li class="page-item {% if not items.has_prev %}disabled{% endif %}">
+        {% if items.has_prev %}
+          <a class="page-link" href="{{ url_for('admin.manage_items', page=items.prev_num, per_page=items.per_page) }}">Previous</a>
+        {% else %}
+          <span class="page-link">Previous</span>
+        {% endif %}
+      </li>
+
+      {% set start = items.page - 2 if items.page - 2 > 0 else 1 %}
+      {% set end = items.page + 2 if items.page + 2 <= items.pages else items.pages %}
+      {% for p in range(start, end + 1) %}
+        <li class="page-item {% if p == items.page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for('admin.manage_items', page=p, per_page=items.per_page) }}">{{ p }}</a>
+        </li>
+      {% endfor %}
+
+      <li class="page-item {% if not items.has_next %}disabled{% endif %}">
+        {% if items.has_next %}
+          <a class="page-link" href="{{ url_for('admin.manage_items', page=items.next_num, per_page=items.per_page) }}">Next</a>
+        {% else %}
+          <span class="page-link">Next</span>
+        {% endif %}
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+
+</main>
+{% endblock %}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Reservasi Diterima</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; color:#222;">
+    <div style="max-width:680px;margin:0 auto;padding:16px;">
+      <h2 style="color:#0d6efd">Reservasi Anda Diterima — Rentalkuy</h2>
+      <p>Halo {{ borrower.username }},</p>
+
+      <p>
+        Reservasi Anda dengan <strong>ID #{{ rental.id }}</strong> telah disetujui oleh admin.
+        Silakan lanjutkan ke proses pembayaran agar reservasi diproses lebih lanjut.
+      </p>
+
+      <p>
+        <strong>Ringkasan Pesanan:</strong><br/>
+        Tanggal Ambil: {{ rental.pickup_date.strftime('%d-%m-%Y') if rental.pickup_date else '-' }}<br/>
+        Total Harga: Rp {{ "{:,.0f}".format(rental.total_price|float) if rental.total_price else '-' }}<br/>
+      </p>
+
+      <p>
+        Anda dapat melihat detail pesanan dan instruksi pembayaran di halaman admin/riwayat:
+        <a href="{{ url_for('admin.manage_reservations', _external=True) }}">Lihat Reservasi</a>.
+      </p>
+
+      <hr/>
+      <p style="color:#666;font-size:0.9rem;">
+        Jika ini bukan Anda atau ada kendala, silakan hubungi admin.
+      </p>
+      <p>Terima kasih,<br/>Tim Rentalkuy</p>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,146 @@
+{# templates/nav.html - full replace (staff dropdown shows single "Staff Dashboard") #}
+
+{# ===================== STYLE ===================== #}
+<style>
+  /* --- Remove native browser "x/clear" for input type=search (Chrome, Edge) --- */
+  input[type="search"]::-webkit-search-cancel-button { display: none; }
+  input[type="search"]::-ms-clear { display: none; width: 0; height: 0; }
+
+  .auth-link {
+    padding: 0.35rem 1.1rem;
+    border-radius: 999px;
+    font-weight: 500;
+    color: #ffffff;
+    background-color: #0d6efd;
+    border: 1px solid #0d6efd;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+    white-space: nowrap;
+  }
+  .auth-link:hover { background-color: #0b5ed7; color: #ffffff; }
+  .nav-item-auth { margin-left: 0.5rem; }
+  .auth-disabled { pointer-events: none; opacity: 0.6; }
+
+  .nav-search-form { width: 520px; max-width: 52vw; position: relative; }
+  @media (max-width: 992px) { .nav-search-form { width: 360px; max-width: 60vw; } }
+  @media (max-width: 576px) { .nav-search-form { width: 100%; max-width: none; margin-top: 0.5rem; } }
+
+  .nav-search-form .form-control {
+    border-radius: 8px; height: 40px; padding-left: 14px; padding-right: 40px;
+  }
+  .nav-clear-btn {
+    position: absolute; right: 94px; top: 50%; transform: translateY(-50%);
+    border: none; background: transparent; color: #6c757d; font-size: 18px;
+    cursor: pointer; display: none; padding: 0 6px; line-height: 1;
+  }
+  @media (max-width: 576px) { .nav-clear-btn { right: 120px; } }
+  .nav-search-form .btn-search { height: 40px; border-radius: 8px; padding: 0 12px; }
+
+  .nav-search-placeholder { width: 520px; max-width: 52vw; height: 40px; }
+  @media (max-width: 992px) { .nav-search-placeholder { width: 360px; max-width: 60vw; } }
+  @media (max-width: 576px) { .nav-search-placeholder { display:block; width:100%; } }
+</style>
+
+{# ===================== NAVBAR ===================== #}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+  <div class="container">
+    <a class="navbar-brand" href="{{ url_for('main.home') }}">RentalKuy</a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+
+      <ul class="navbar-nav me-auto align-items-center">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('catalog.list_items') }}">Catalog</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.about') }}">About Us</a></li>
+      </ul>
+
+      {% set show_search = request.endpoint in ['main.home', 'catalog.list_items'] %}
+      {% if show_search %}
+        {% if request.endpoint == 'main.home' %}
+          {% set search_action = url_for('main.home') %}
+        {% else %}
+          {% set search_action = url_for('catalog.list_items') %}
+        {% endif %}
+
+        <form class="d-flex me-3 nav-search-form" method="GET" action="{{ search_action }}" role="search" id="nav-search-form">
+          <input class="form-control me-2" id="nav-search-input" type="search" name="q"
+                 placeholder="Search item or category..." autocomplete="off" value="{{ request.args.get('q', '') }}">
+          <button type="button" class="nav-clear-btn" id="nav-clear-btn" aria-label="Clear search">✕</button>
+          <button class="btn btn-outline-light btn-search" type="submit">Search</button>
+        </form>
+      {% else %}
+        <div class="nav-search-placeholder me-3"></div>
+      {% endif %}
+
+      <ul class="navbar-nav ms-auto align-items-center">
+        {% if current_user.is_authenticated %}
+          <li class="nav-item me-3">
+            <a class="nav-link position-relative" href="{{ url_for('cart.view_cart') }}">
+              Cart
+              {% if cart_count > 0 %}
+                <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle">
+                  {{ cart_count }}
+                </span>
+              {% endif %}
+            </a>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+              <img src="{{ url_for('static', filename='uploads/profile_pics/' + (current_user.image_file or 'default.jpg')) }}"
+                   class="rounded-circle" width="25" height="25" style="object-fit: cover;">
+              Hello, {{ current_user.username }}
+            </a>
+
+            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end shadow">
+              <li><a class="dropdown-item" href="{{ url_for('account.profile') }}">My Account</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('booking.history') }}">Rental History</a></li>
+
+              {# FOR STAFF: show single "Staff Dashboard" link only #}
+              {% if current_user.role == 'staff' %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('staff.dashboard') }}">Staff Dashboard</a></li>
+              {% endif %}
+
+              {# FOR ADMIN: show admin dashboard link (keperluan admin) #}
+              {% if current_user.role == 'admin' %}
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">Admin Dashboard</a></li>
+              {% endif %}
+
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Logout</a></li>
+            </ul>
+          </li>
+
+        {% else %}
+          <li class="nav-item nav-item-auth">
+            <a href="{{ url_for('auth.login') }}" class="auth-link {% if request.endpoint == 'auth.login' %}auth-disabled{% endif %}">Login</a>
+          </li>
+          <li class="nav-item nav-item-auth">
+            <a href="{{ url_for('auth.register') }}" class="auth-link {% if request.endpoint == 'auth.register' %}auth-disabled{% endif %}">Register</a>
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+{# small JS for clear button #}
+<script>
+  (function(){
+    const input = document.getElementById('nav-search-input');
+    const btn = document.getElementById('nav-clear-btn');
+    if (!input || !btn) return;
+    function updateClear() { if (input.value && input.value.trim().length > 0) btn.style.display = 'block'; else btn.style.display = 'none'; }
+    updateClear();
+    input.addEventListener('input', updateClear);
+    input.addEventListener('paste', () => setTimeout(updateClear, 10));
+    input.addEventListener('keyup', updateClear);
+    btn.addEventListener('click', function(){ input.value = ''; updateClear(); const form = document.getElementById('nav-search-form'); if (form) form.submit(); });
+    input.addEventListener('keydown', function(e){ if (e.key === 'Escape') { input.value = ''; updateClear(); } });
+  })();
+</script>

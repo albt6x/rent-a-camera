@@ -1,0 +1,272 @@
+/* app/static/css/style.css */
+
+/* ========================================= */
+/* === TEMA BARU: FONT & WARNA (BARU!) === */
+/* ========================================= */
+
+/* 1. Definisikan variabel warna kita */
+:root {
+    --primary-theme: #0B2447; /* Biru Tua (untuk Navbar/Sidebar) */
+    --secondary-theme: #19A7CE; /* Cyan (untuk Tombol & Link Aktif) */
+    --light-bg: #f8f9fa;
+    --dark-text: #2c3e50;
+    --light-text: #777;
+}
+
+/* 2. Gunakan Font Poppins di seluruh website */
+body {
+    background-color: var(--light-bg);
+    font-family: 'Poppins', sans-serif; /* <-- FONT BARU! */
+    color: var(--dark-text);
+}
+
+/* 3. Ubah warna Navbar (bg-dark) */
+.navbar.bg-dark {
+    background-color: var(--primary-theme) !important;
+}
+
+/* 4. Ubah warna Tombol Biru (btn-primary) */
+.btn-primary {
+    background-color: var(--secondary-theme);
+    border-color: var(--secondary-theme);
+}
+.btn-primary:hover {
+    background-color: #148aa6; /* Sedikit lebih gelap saat di-hover */
+    border-color: #148aa6;
+}
+
+/* 5. Ubah warna Link (misal di 'card' katalog) */
+a {
+    color: var(--secondary-theme);
+}
+a:hover {
+    color: #148aa6;
+}
+.text-dark {
+    color: var(--dark-text) !important;
+}
+
+
+/* ========================================= */
+/* === LAYOUT SIDEBAR ADMIN === */
+/* ========================================= */
+.admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    padding-top: 56px;
+    background-color: #ffffff;
+    border-right: 1px solid #dee2e6;
+    overflow-y: auto;
+}
+.admin-content {
+    margin-left: 280px;
+    padding: 2rem;
+    padding-top: 76px;
+}
+.admin-sidebar .list-group-item-action {
+    border: none;
+    border-radius: 0.3rem;
+    margin: 0.2rem 0.5rem;
+    color: var(--dark-text); /* Ubah warna teks menu */
+    font-weight: 500;
+}
+
+/* Ubah warna menu admin yang 'aktif' */
+.admin-sidebar .list-group-item-action.active,
+.admin-sidebar .list-group-item-action.active:hover {
+    background-color: var(--primary-theme); /* <-- WARNA AKTIF & HOVER AKTIF */
+    border-color: var(--primary-theme);
+    color: #fff;
+}
+
+.admin-sidebar .list-group-item-action:hover {
+    background-color: #f1f1f1;
+}
+
+/* ========================================= */
+/* === STYLING LAINNYA === */
+/* ========================================= */
+
+/* Ubah warna filter katalog yang 'aktif' */
+.list-group-item.active {
+    background-color: var(--secondary-theme);
+    border-color: var(--secondary-theme);
+}
+
+.card {
+    border: none;
+    border-radius: 0.5rem;
+}
+.fc-header-toolbar {
+    padding-bottom: 10px;
+}
+.fc-daygrid-day-number {
+    font-weight: 500;
+}
+.item-description {
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+    color: #495057;
+}
+
+/* ========================================= */
+/* === EFEK FLIP CARD === */
+/* ========================================= */
+.flip-card {
+    background-color: transparent;
+    min-height: 450px;
+    perspective: 1000px;
+    border: none;
+}
+.flip-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+}
+.flip-card-inner.is-flipped {
+    transform: rotateY(180deg);
+}
+.flip-card-front,
+.flip-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.flip-card-back {
+    background-color: #ffffff;
+    color: black;
+    transform: rotateY(180deg);
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    overflow-y: auto;
+}
+.flip-trigger {
+    cursor: pointer;
+}
+
+/* ========================================= */
+/* === ITEM CARD BUTTON STYLES (DETAIL & DURATION) === */
+/* ========================================= */
+
+/* Tombol "View/Lihat Detail Spesifikasi" */
+.detail-spec-btn {
+    border-radius: 999px;
+    font-weight: 500;
+    border-width: 1.5px;
+    color: var(--secondary-theme);
+    border-color: var(--secondary-theme);
+    background-color: transparent;
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.detail-spec-btn:hover {
+    background-color: var(--secondary-theme);
+    color: #ffffff;
+    border-color: var(--secondary-theme);
+    text-decoration: none;
+}
+
+/* Tombol pilihan durasi (12 Jam / 24 Jam) */
+.duration-btn {
+    border-radius: 999px;
+    padding: 0.25rem 0.9rem;
+    font-weight: 500;
+    border-width: 1.5px;
+    background-color: transparent;
+    color: #6c757d;
+    border-color: #ced4da;
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.duration-btn:hover {
+    background-color: var(--secondary-theme);
+    color: #ffffff;
+    border-color: var(--secondary-theme);
+}
+
+/* Jarak kecil antara tombol 12 & 24 */
+.duration-btn + .duration-btn {
+    margin-left: 0.35rem;
+}
+
+/* ========================================= */
+/* === ADMIN: TABEL MANAJEMEN RESERVASI === */
+/* ========================================= */
+
+/* Card di area admin biar lebih “ngangkat” dikit */
+.admin-content .card {
+    border-radius: 0.75rem;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+.admin-content .card .card-body {
+    padding: 1.75rem 1.75rem;
+}
+
+/* Header tabel Manajemen Reservasi */
+.admin-content h2 {
+    font-weight: 700;
+}
+.admin-content p.text-muted {
+    font-size: 0.92rem;
+}
+
+/* Tabel reservasi */
+.admin-content .table {
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+.admin-content .table thead th {
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    color: var(--light-text);
+    border-bottom-width: 1px;
+}
+
+.admin-content .table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.admin-content .table th,
+.admin-content .table td {
+    vertical-align: middle;
+}
+
+/* Biar kolom ID dan Pemesan agak menonjol */
+.admin-content .table td:first-child,
+.admin-content .table th:first-child {
+    font-weight: 600;
+}
+
+/* Badge global jadi pill yang rapi */
+.badge {
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font-weight: 500;
+    font-size: 0.75rem;
+}
+
+/* Sedikit rapihin tombol di kolom Aksi */
+.admin-content .btn.btn-sm {
+    border-radius: 999px;
+    padding-inline: 0.9rem;
+}
+.admin-content td .btn + .btn {
+    margin-left: 0.35rem;
+}

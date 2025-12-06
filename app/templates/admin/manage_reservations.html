@@ -1,0 +1,283 @@
+{# templates/admin/manage_reservations.html (FULL REPLACE) #}
+{% extends "base.html" %}
+
+{% block title %}Manajemen Reservasi{% endblock %}
+
+{% block content %}
+<div class="admin-sidebar">
+  {% include 'admin/admin_menu.html' %}
+</div>
+
+<main class="admin-content">
+  {% include 'flash_messages.html' %}
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h2 class="mb-2">Manajemen Reservasi</h2>
+      <p class="text-muted mb-3">Di sini Anda bisa melihat semua pesanan yang masuk dan mengubah statusnya.</p>
+
+      {# Jika ini dashboard staff (is_staff_dashboard True), sembunyikan UI filter.
+         Admin (is_staff_dashboard False atau tidak diset) tetap melihat filter. #}
+      {% if not is_staff_dashboard %}
+      {# --- Setup: tentukan endpoint dasar untuk link (staff vs admin) --- #}
+      {% set base_endpoint = 'staff.dashboard' if is_staff_dashboard else 'admin.manage_reservations' %}
+
+      <!-- FILTER STATUS -->
+      <div class="mb-3">
+        <span class="fw-bold me-2">Filter Status:</span>
+
+        <a href="{{ url_for(base_endpoint) }}"
+           class="btn btn-sm {% if not status_filter %}btn-dark{% else %}btn-outline-dark{% endif %} me-1">
+          Semua
+        </a>
+
+        <a href="{{ url_for(base_endpoint, status='Ditinjau') }}"
+           class="btn btn-sm {% if status_filter == 'Ditinjau' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %} me-1">
+          Ditinjau
+        </a>
+
+        <a href="{{ url_for(base_endpoint, status='ACC') }}"
+           class="btn btn-sm {% if status_filter == 'ACC' %}btn-success{% else %}btn-outline-success{% endif %} me-1">
+          ACC
+        </a>
+
+        <a href="{{ url_for(base_endpoint, status='Ditolak') }}"
+           class="btn btn-sm {% if status_filter == 'Ditolak' %}btn-danger{% else %}btn-outline-danger{% endif %} me-1">
+          Ditolak
+        </a>
+
+        <a href="{{ url_for(base_endpoint, status='Selesai') }}"
+           class="btn btn-sm {% if status_filter == 'Selesai' %}btn-info text-dark{% else %}btn-outline-info{% endif %}">
+          Selesai
+        </a>
+      </div>
+      {% endif %}
+      {# end IF not staff #}
+
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Pemesan</th>
+              <th>Tgl Ambil</th>
+              <th>Total Harga</th>
+              <th>Bukti Bayar</th>
+              <th>Status Order</th>
+              <th>Status Bayar</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+
+          {% if rentals and rentals.items %}
+            {% for rental in rentals.items %}
+            <tr>
+              <td>#{{ rental.id }}</td>
+
+              <td>
+                <div class="d-flex align-items-center">
+                  {% if rental.borrower and rental.borrower.image_file %}
+                    <img src="{{ url_for('static', filename='uploads/profile_pics/' ~ rental.borrower.image_file) }}"
+                         width="28" height="28" class="rounded-circle me-2" style="object-fit:cover;">
+                  {% endif %}
+                  {{ rental.borrower.username if rental.borrower else '-' }}
+                </div>
+              </td>
+
+              <td>
+                {% if rental.pickup_date %}
+                  {{ rental.pickup_date.strftime('%d-%m-%Y') }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+
+              <td>
+                {% if rental.total_price %}
+                  Rp {{ "{:,.0f}".format(rental.total_price|float) }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+
+              <td class="align-middle">
+                {% if current_user.role == 'admin' %}
+                  {% if rental.payment_proof %}
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary view-proof-btn"
+                            data-bs-toggle="modal"
+                            data-bs-target="#proofModal"
+                            data-img="{{ url_for('static', filename='uploads/payment_proofs/' ~ rental.payment_proof) }}"
+                            data-title="Bukti Pembayaran - #{{ rental.id }}">
+                      Lihat Bukti
+                    </button>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% set so = rental.order_status or '' %}
+                {% if so == 'Ditinjau' %}
+                  <span class="badge bg-warning text-dark">Ditinjau</span>
+                {% elif so == 'ACC' %}
+                  <span class="badge bg-success">ACC</span>
+                {% elif so == 'Ditolak' %}
+                  <span class="badge bg-danger">Ditolak</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ so }}</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% set sb = rental.payment_status or '' %}
+                {% if sb == 'Belum Bayar' %}
+                  <span class="badge bg-warning text-dark">Belum Bayar</span>
+                {% elif sb == 'Menunggu Konfirmasi' %}
+                  <span class="badge bg-info text-dark">Menunggu Konfirmasi</span>
+                {% elif sb == 'Pengambilan' %}
+                  <span class="badge bg-primary">Pengambilan</span>
+                {% elif sb == 'Selesai' %}
+                  <span class="badge bg-success">Selesai</span>
+                {% elif sb == 'Dibatalkan' %}
+                  <span class="badge bg-secondary">Dibatalkan</span>
+                {% else %}
+                  <span class="badge bg-light text-muted">{{ sb }}</span>
+                {% endif %}
+              </td>
+
+              <td>
+                {% if rental.order_status == 'Ditinjau' %}
+                  <form method="POST" action="{{ url_for('admin.approve_rental', rental_id=rental.id) }}" class="d-inline">
+                    <button class="btn btn-sm btn-success me-1">ACC</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('admin.reject_rental', rental_id=rental.id) }}" class="d-inline">
+                    <button class="btn btn-sm btn-danger">Tolak</button>
+                  </form>
+
+                {% elif rental.order_status == 'ACC' %}
+                  {% if rental.payment_status == 'Menunggu Konfirmasi' and current_user.role == 'admin' %}
+                    <form method="POST" action="{{ url_for('admin.confirm_payment', rental_id=rental.id) }}" class="d-inline">
+                      <button class="btn btn-sm btn-success me-1">Konfirmasi</button>
+                    </form>
+
+                  {% elif rental.payment_status == 'Pengambilan' %}
+                    <form method="POST" action="{{ url_for('admin.mark_as_returned', rental_id=rental.id) }}" class="d-inline">
+                      <button class="btn btn-sm btn-primary">Tandai Selesai</button>
+                    </form>
+
+                  {% elif rental.payment_status == 'Belum Bayar' %}
+                    <small class="text-muted">Menunggu pembayaran...</small>
+
+                  {% elif rental.payment_status == 'Selesai' %}
+                    <small class="text-muted">Selesai</small>
+
+                  {% endif %}
+
+                {% else %}
+                  <small class="text-muted">--</small>
+                {% endif %}
+              </td>
+
+            </tr>
+            {% endfor %}
+
+          {% else %}
+            <tr>
+              <td colspan="8" class="text-center py-4 fw-semibold">Belum ada reservasi.</td>
+            </tr>
+          {% endif %}
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGINATION -->
+  {% if rentals and rentals.pages > 1 %}
+  <nav class="mt-3">
+    <ul class="pagination justify-content-center">
+      {% set base_endpoint = 'staff.dashboard' if is_staff_dashboard else 'admin.manage_reservations' %}
+      {% if rentals.has_prev %}
+        <li class="page-item">
+          <a class="page-link" href="{{ url_for(base_endpoint, page=rentals.prev_num, status=status_filter) }}">Previous</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Previous</span></li>
+      {% endif %}
+
+      {% set start = rentals.page - 2 if rentals.page - 2 > 0 else 1 %}
+      {% set end = rentals.page + 2 if rentals.page + 2 <= rentals.pages else rentals.pages %}
+      {% for p in range(start, end + 1) %}
+        <li class="page-item {% if p == rentals.page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for(base_endpoint, page=p, status=status_filter) }}">{{ p }}</a>
+        </li>
+      {% endfor %}
+
+      {% if rentals.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="{{ url_for(base_endpoint, page=rentals.next_num, status=status_filter) }}">Next</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">Next</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+</main>
+
+<!-- MODAL BUKTI PEMBAYARAN (hanya digunakan bila admin melihat) -->
+<div class="modal fade" id="proofModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Bukti Pembayaran</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="proofModalImg"
+             src=""
+             style="max-width:100%; border-radius:6px; border:1px solid #e9ecef;">
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = document.getElementById("proofModal");
+  const modalImg = document.getElementById("proofModalImg");
+  const modalTitle = modal ? modal.querySelector(".modal-title") : null;
+
+  document.body.addEventListener("click", function (e) {
+    const btn = e.target.closest(".view-proof-btn");
+    if (!btn) return;
+
+    if (modalImg) modalImg.src = btn.dataset.img;
+    if (modalTitle) modalTitle.textContent = btn.dataset.title;
+  });
+
+  if (modal) {
+    modal.addEventListener("hidden.bs.modal", () => {
+      if (modalImg) modalImg.src = "";
+    });
+  }
+});
+</script>
+{% endblock %}

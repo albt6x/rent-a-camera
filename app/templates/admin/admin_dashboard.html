@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Admin{% endblock %}
+
+{% block content %}
+<div class="admin-sidebar">
+    {% include 'admin/admin_menu.html' %}
+</div>
+
+<main class="admin-content">
+    {% include 'flash_messages.html' %}
+    
+    <!-- Ringkasan singkat -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="mb-3">Ringkasan Reservasi</h2>
+            {% if stats %}
+            <div class="row text-center g-3">
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded bg-light">
+                        <div class="small text-muted">Total Reservasi</div>
+                        <div class="fs-4 fw-bold">{{ stats.total }}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded bg-light">
+                        <div class="small text-muted">Menunggu Ditinjau</div>
+                        <div class="fs-4 fw-bold">{{ stats.pending }}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded bg-light">
+                        <div class="small text-muted">Disetujui (ACC)</div>
+                        <div class="fs-4 fw-bold">{{ stats.approved }}</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded bg-light">
+                        <div class="small text-muted">Selesai</div>
+                        <div class="fs-4 fw-bold">{{ stats.finished }}</div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">Belum ada data reservasi.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tabel reservasi terbaru -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">Daftar Reservasi Terbaru</h4>
+                <a href="{{ url_for('admin.manage_reservations') }}" class="btn btn-sm btn-outline-primary">
+                    Kelola Semua Reservasi
+                </a>
+            </div>
+
+            {% if rentals %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Penyewa</th>
+                                <th>Tanggal Ambil</th>
+                                <th>Total Harga</th>
+                                <th>Status Pesanan</th>
+                                <th>Status Pembayaran</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rental in rentals[:10] %}
+                            <tr>
+                                <td>#{{ rental.id }}</td>
+                                <td>{{ rental.borrower.username if rental.borrower else '-' }}</td>
+                                <td>
+                                    {% if rental.pickup_date %}
+                                        {{ rental.pickup_date.strftime('%d %b %Y') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if rental.total_price is not none %}
+                                        Rp {{ "{:,.0f}".format(rental.total_price|float) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ rental.order_status }}</td>
+                                <td>{{ rental.payment_status }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <small class="text-muted">Menampilkan maksimal 10 reservasi terbaru.</small>
+            {% else %}
+                <div class="alert alert-info mb-0">
+                    Belum ada reservasi yang tercatat.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</main>
+{% endblock content %}
+
+{% block head_extra %}{% endblock %}
+{% block scripts %}{% endblock %}

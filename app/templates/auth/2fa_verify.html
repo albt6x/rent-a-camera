@@ -1,0 +1,57 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+
+<div class="container mt-5" style="max-width: 450px;">
+  <div class="card shadow">
+    <div class="card-body">
+
+      <h3 class="text-center mb-4">Verifikasi 2FA</h3>
+
+      <p class="text-muted text-center">
+        Masukkan kode 6 digit dari aplikasi autentikator Anda.
+      </p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} text-center">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" action="{{ url_for('auth.twofa_verify') }}">
+        {{ csrf_token() }}
+
+        <div class="mb-3">
+          <label for="code" class="form-label">Kode 2FA</label>
+          <input
+            type="tel"
+            inputmode="numeric"
+            pattern="\d{6}"
+            maxlength="6"
+            class="form-control text-center"
+            id="code"
+            name="code"
+            placeholder="123456"
+            required
+            autofocus
+            autocomplete="one-time-code"
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">Verifikasi</button>
+      </form>
+
+      <div class="text-center mt-3">
+        <small class="text-muted">Tidak menerima kode? Pastikan jam ponsel Anda sinkron (set ke otomatis).</small>
+      </div>
+
+      <div class="text-center mt-2">
+        <a href="{{ url_for('auth.login') }}" class="small">Kembali ke Login</a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="admin-sidebar">
+    {% include 'admin/admin_menu.html' %}
+</div>
+
+<main class="admin-content">
+    {% include 'flash_messages.html' %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex align-items-center mb-4">
+                <img src="{{ url_for('static', filename='uploads/profile_pics/' + user.image_file) }}"
+                     class="rounded-circle" width="60" height="60" style="object-fit: cover;">
+                <h2 class="mb-0 ms-3">{{ title }}</h2>
+            </div>
+            
+            <form method="POST" action="">
+                {{ form.hidden_tag() }}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {% if form.username.errors %}
+                            {{ form.username(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.username.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.username(class="form-control") }}
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {% if form.email.errors %}
+                            {{ form.email(class="form-control is-invalid") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.email.errors %}<span>{{ error }}</span>{% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.email(class="form-control") }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    {{ form.role.label(class="form-label") }}
+                    {{ form.role(class="form-select", style="background-color: white;") }}
+                </div>
+                {{ form.submit(class="btn btn-success") }}
+                <a href="{{ url_for('admin.manage_staff') }}" class="btn btn-secondary">Batal</a>
+            </form>
+        </div>
+    </div>
+</main>
+{% endblock content %}

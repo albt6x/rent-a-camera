@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}About Us - RentalKuy{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top: 90px; padding-bottom: 40px;">
+
+  {% include 'flash_messages.html' %}
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4 p-md-5">
+
+          <h1 class="h3 mb-3 fw-bold text-dark">Tentang RentalKuy</h1>
+          <p class="text-muted mb-4">
+            RentalKuy adalah platform penyewaan kamera dan perlengkapan multimedia
+            yang kami bangun untuk memudahkan proses sewa secara online.
+          </p>
+
+          <h5 class="fw-semibold mb-2">Apa yang bisa kamu sewa?</h5>
+          <p class="text-muted">
+            Di sini tersedia berbagai pilihan kamera, lensa, drone, hingga lighting
+            dan perlengkapan pendukung fotografi/videografi lain yang bisa disesuaikan
+            dengan kebutuhan pemula sampai profesional.
+          </p>
+
+          <h5 class="fw-semibold mb-2">Kenapa lewat RentalKuy?</h5>
+          <ul class="text-muted mb-4">
+            <li>Peralatan dicek dan dirawat secara berkala.</li>
+            <li>Harga sewa yang masih masuk akal untuk pelajar maupun UMKM.</li>
+            <li>Proses pemesanan dibuat sesederhana mungkin melalui website.</li>
+          </ul>
+
+          <p class="mb-0 text-muted">
+            Lewat layanan yang kami sediakan, proses sewa kamera jadi lebih praktis 
+            dan gampang digunakan siapa saja. 
+          </p>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+{% endblock %}

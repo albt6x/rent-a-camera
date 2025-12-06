@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="admin-sidebar">
+    {% include 'admin/admin_menu.html' %}
+</div>
+
+<main class="admin-content">
+    {% include 'flash_messages.html' %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="mb-4">{{ title }}</h2>
+            
+            <form method="POST" action="" enctype="multipart/form-data">
+                {{ form.hidden_tag() }} 
+
+                <div class="mb-3">
+                    {{ form.category.label(class="form-label") }}
+                    {{ form.category(class="form-select", style="background-color: white;") }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.name.label(class="form-label") }}
+                    {{ form.name(class="form-control") }}
+                </div>
+
+                <div class="mb-3">
+                    {{ form.description.label(class="form-label") }}
+                    {{ form.description(class="form-control", rows=5) }}
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.price_per_hour.label(class="form-label") }}
+                        {{ form.price_per_hour(class="form-control") }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.price_per_day.label(class="form-label") }}
+                        {{ form.price_per_day(class="form-control") }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.stock.label(class="form-label") }}
+                        {{ form.stock(class="form-control") }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.picture.label(class="form-label") }}
+                        {{ form.picture(class="form-control") }}
+                    </div>
+                </div>
+
+                {% if current_image %}
+                <div class="mb-3">
+                    <label class="form-label">Gambar Saat Ini:</label><br>
+                    <img src="{{ url_for('static', filename='uploads/items/' + current_image) }}"
+                         class="img-thumbnail" width="150" style="object-fit: cover;">
+                    <p class="form-text">Unggah file baru di atas untuk mengganti gambar ini.</p>
+                </div>
+                {% endif %}
+                
+                <div class="d-grid mt-4">
+                    {{ form.submit(class="btn btn-success btn-lg") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+{% endblock content %}

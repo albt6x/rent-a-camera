@@ -1,0 +1,22 @@
+{# templates/staff/staff_menu.html - new staff sidebar #}
+<div class="list-group list-group-flush p-3">
+
+  <a href="{{ url_for('staff.dashboard') }}"
+     class="list-group-item list-group-item-action
+     {% if request.endpoint.startswith('staff.dashboard') or request.endpoint.startswith('admin.manage_reservations') %}active{% endif %}">
+     Manajemen Reservasi
+  </a>
+
+  <a href="{{ url_for('staff.view_items') }}"
+     class="list-group-item list-group-item-action
+     {% if request.endpoint.startswith('staff.view_items') %}active{% endif %}">
+     Daftar Barang
+  </a>
+
+  <a href="{{ url_for('staff.daily_report') }}"
+     class="list-group-item list-group-item-action
+     {% if request.endpoint.startswith('staff.daily_report') %}active{% endif %}">
+     Laporan Harian
+  </a>
+
+</div>
