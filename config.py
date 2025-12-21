@@ -100,8 +100,12 @@ class Config:
     MAIL_USE_SSL = os.environ.get("MAIL_USE_SSL", "0").lower() in ("1", "true", "yes")
     MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
-    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", ADMIN_EMAIL)
+    # Default sender: prefer explicit env value; fallback to formatted admin email
+    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", f"Rentalkuy <{os.environ.get('MAIL_FROM', 'no-reply@rentalkuy.local')}>")
     MAIL_DEBUG = os.environ.get("MAIL_DEBUG", "0").lower() in ("1", "true", "yes")
+
+    # Friendly footer used by templates and fallback HTML in email_utils / routes
+    MAIL_FOOTER = os.environ.get("MAIL_FOOTER", "Rentalkuy · Jl. Contoh No.1 · 0896-7833-XXXX")
 
     # ----------------------------
     # Two-Factor Authentication (TOTP)

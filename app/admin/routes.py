@@ -1,4 +1,3 @@
-# app/admin/routes.py
 from flask import (
     render_template,
     redirect,
@@ -25,31 +24,101 @@ from functools import wraps
 from datetime import timedelta
 import os
 
+# safer helpers from email_utils
+from app.email_utils import (
+    send_payment_confirmed_email,
+    send_order_rejected_email,
+    send_reservation_completed_email,
+)
+
 # Buat blueprint
 admin_bp = Blueprint("admin", __name__)
 
 
+# ---------------------------------------------------------
+# Helper: Aman mengirim email (tidak crash jika gagal)
+# (tetap dipertahankan untuk backward-compat/override)
+# ---------------------------------------------------------
+def _safe_send_email(subject, recipients, text_body, html_body=None, sender=None):
+    """
+    Wrapper yang memanggil current_app.send_email (jika ada).
+    Menangkap exception supaya proses utama tidak crash bila email gagal.
+    """
+    try:
+        send_fn = getattr(current_app, "send_email", None)
+        if not send_fn:
+            current_app.logger.warning("send_email() tidak tersedia di app.")
+            return False
+
+        current_app.logger.debug("Scheduling email to %s (subject=%s)", recipients, subject)
+        return send_fn(
+            subject,
+            recipients,
+            text_body,
+            html=html_body,
+            sender=sender,
+        )
+    except Exception as exc:
+        current_app.logger.exception("Gagal mengirim email: %s", exc)
+        return False
+
 # ==========================================================
-# 1. DECORATOR KEAMANAN
+# DECORATORS WAJIB (ADMIN / STAFF / 2FA)
+# file: app/admin/routes.py
+# FULL REPLACE
 # ==========================================================
+
+from functools import wraps
+from flask import abort, redirect, url_for, flash, session
+from flask_login import current_user
+
+
+# ----------------------------------------------------------
+# 1. HANYA ADMIN
+# ----------------------------------------------------------
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.role != "admin":
             abort(403)
         return f(*args, **kwargs)
-
     return decorated_function
 
 
+# ----------------------------------------------------------
+# 2. ADMIN + STAFF
+# ----------------------------------------------------------
 def staff_or_admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role not in [
-            "admin",
-            "staff",
-        ]:
+        if not current_user.is_authenticated:
             abort(403)
+        if current_user.role not in ["admin", "staff"]:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# ----------------------------------------------------------
+# 3. ADMIN + WAJIB 2FA
+# ----------------------------------------------------------
+def admin_2fa_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # wajib login admin
+        if not current_user.is_authenticated or current_user.role != "admin":
+            abort(403)
+
+        # admin belum aktifkan 2FA → langsung setup
+        if not current_user.otp_secret:
+            flash("Aktifkan 2FA terlebih dahulu sebelum masuk dashboard.", "warning")
+            return redirect(url_for("twofa.twofa_setup"))
+
+        # admin sudah punya 2FA tapi session belum verified
+        if not session.get("admin_2fa_verified"):
+            flash("Verifikasi 2FA diperlukan untuk mengakses halaman admin.", "warning")
+            return redirect(url_for("twofa.verify_page"))
+
         return f(*args, **kwargs)
 
     return decorated_function
@@ -60,7 +129,7 @@ def staff_or_admin_required(f):
 # ==========================================================
 @admin_bp.route("/dashboard")
 @login_required
-@admin_required
+@admin_2fa_required
 def dashboard():
     return redirect(url_for("admin.manage_reservations"))
 
@@ -70,7 +139,7 @@ def dashboard():
 # ==========================================================
 @admin_bp.route("/categories", methods=["GET", "POST"])
 @login_required
-@admin_required
+@admin_2fa_required
 def manage_categories():
     form = CategoryForm()
     if form.validate_on_submit():
@@ -96,20 +165,13 @@ def manage_categories():
 # ==========================================================
 @admin_bp.route("/items/")
 @login_required
-@admin_required
+@admin_2fa_required
 def manage_items():
-    """
-    Menampilkan daftar item dengan pagination.
-    Query params:
-      - page (int) : nomor halaman, default 1
-      - per_page (int) : items per page, default 10
-    """
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
 
     items = Item.query.order_by(Item.name).paginate(page=page, per_page=per_page, error_out=False)
 
-    # categories untuk area inline
     categories = Category.query.order_by(Category.name).all()
     category_form = CategoryForm()
 
@@ -128,7 +190,7 @@ def manage_items():
 # ==========================================================
 @admin_bp.route("/items/categories/add", methods=["POST"])
 @login_required
-@admin_required
+@admin_2fa_required
 def add_category_inline():
     form = CategoryForm()
     if form.validate_on_submit():
@@ -153,7 +215,7 @@ def add_category_inline():
 # ==========================================================
 @admin_bp.route("/items/categories/delete/<int:category_id>", methods=["POST"])
 @login_required
-@admin_required
+@admin_2fa_required
 def delete_category_inline(category_id):
     category = Category.query.get_or_404(category_id)
     still_used = Item.query.filter_by(category_id=category.id).first()
@@ -175,7 +237,7 @@ def delete_category_inline(category_id):
 # ==========================================================
 @admin_bp.route("/items/new", methods=["GET", "POST"])
 @login_required
-@admin_required
+@admin_2fa_required
 def add_item():
     form = ItemForm()
     form.category.choices = [(c.id, c.name) for c in Category.query.order_by(Category.name).all()]
@@ -207,7 +269,7 @@ def add_item():
 # ==========================================================
 @admin_bp.route("/items/edit/<int:item_id>", methods=["GET", "POST"])
 @login_required
-@admin_required
+@admin_2fa_required
 def edit_item(item_id):
     item = Item.query.get_or_404(item_id)
     form = ItemForm(obj=item)
@@ -248,13 +310,6 @@ def edit_item(item_id):
 @login_required
 @staff_or_admin_required
 def manage_reservations():
-    """
-    Menampilkan daftar reservasi dengan pagination dan filter status.
-    Query params:
-      - page (int) : nomor halaman
-      - per_page (int) : items per page
-      - status (str) : filter order/payment status
-    """
     status_filter = request.args.get("status")
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
@@ -284,30 +339,23 @@ def manage_reservations():
 # ==========================================================
 @admin_bp.route("/reservations/proof/<int:rental_id>")
 @login_required
-@admin_required
+@admin_2fa_required
 def view_proof(rental_id):
-    """
-    Serve payment proof file only to admins.
-    File should be stored in a protected upload folder (not public static).
-    """
     rental = Rental.query.get_or_404(rental_id)
     proof_filename = getattr(rental, "payment_proof", None)
     if not proof_filename:
         abort(404)
 
-    # Path config - sesuaikan key di config.py
     upload_dir = current_app.config.get("UPLOAD_FOLDER_PAYMENT_PROOFS")
     if not upload_dir:
-        # fallback: project_root/uploads/payment_proofs
-        upload_dir = os.path.join(current_app.root_path, "uploads", "payment_proofs")
+        upload_dir = os.path.join(current_app.root_path, "static", "uploads", "payment_proofs")
 
     file_path = os.path.join(upload_dir, proof_filename)
 
     if not os.path.exists(file_path):
-        # fallback: check static uploads (legacy)
-        static_path = os.path.join(current_app.root_path, "static", "uploads", "payment_proofs", proof_filename)
-        if os.path.exists(static_path):
-            file_path = static_path
+        alt = os.path.join(current_app.root_path, "uploads", "payment_proofs", proof_filename)
+        if os.path.exists(alt):
+            file_path = alt
         else:
             abort(404)
 
@@ -342,11 +390,13 @@ def approve_rental(rental_id):
     db.session.commit()
     flash(f"Reservasi #{rental.id} telah di-ACC. Stok barang telah dikurangi.", "success")
 
-    # --- NEW: kirim notifikasi email ke pembeli (buyer) ---
+    # --- kirim notifikasi email ke pembeli (buyer) ---
     try:
         buyer = User.query.get(rental.user_id)
         if buyer and getattr(buyer, "email", None):
             subject = f"[Rentalkuy] Pesanan #{rental.id} Telah Disetujui"
+
+            # plain text fallback
             body_lines = [
                 f"Halo {buyer.username if buyer else 'Pelanggan'},",
                 "",
@@ -367,11 +417,25 @@ def approve_rental(rental_id):
 
             body = "\n".join(body_lines)
 
-            # gunakan helper send_email yang ter-attach di app (non-blocking)
+            # try render html template for email (optional) -- keep this one in routes (you prefer)
+            html = None
             try:
-                current_app.send_email(subject, [buyer.email], body)
+                html = render_template(
+                    "emails/order_approved.html",
+                    rental=rental,
+                    buyer=buyer,
+                    borrower=buyer,  # safety: kirim juga borrower
+                    dashboard_url=(request.url_root or "").rstrip("/"),
+                    mail_footer=current_app.config.get("MAIL_FOOTER", "Rentalkuy · Jl. Con No.1 · 0896-7833-XXXX"),
+                )
+                current_app.logger.debug("order_approved HTML preview (trunc): %s", (html or "")[:1000])
             except Exception:
-                current_app.logger.exception("Gagal mengirim email notifikasi ke buyer untuk rental %s", rental.id)
+                current_app.logger.exception("Gagal merender template order_approved.html untuk rental %s", rental.id)
+                html = None
+
+            # send using safe helper
+            _safe_send_email(subject, [buyer.email], body, html_body=html)
+
     except Exception:
         current_app.logger.exception("Error saat menyiapkan email buyer untuk rental %s", rental.id)
 
@@ -382,17 +446,72 @@ def approve_rental(rental_id):
 
 
 # ==========================================================
-# 9. REJECT RESERVASI
+# 9. REJECT RESERVASI (USE email_utils helper)
 # ==========================================================
 @admin_bp.route("/reservations/reject/<int:rental_id>", methods=["POST"])
 @login_required
 @staff_or_admin_required
 def reject_rental(rental_id):
+    """
+    Clear, robust implementation that:
+     - updates rental state
+     - tries the centralized helper send_order_rejected_email first
+     - if helper returns False or raises, falls back to safe inline send (_safe_send_email)
+     - logs failures but never raises to the user flow
+    """
     rental = Rental.query.get_or_404(rental_id)
     rental.order_status = "Ditolak"
     rental.payment_status = "Dibatalkan"
     db.session.commit()
     flash(f"Reservasi #{rental.id} telah Ditolak.", "warning")
+
+    borrower = getattr(rental, "borrower", None)
+    if borrower and getattr(borrower, "email", None):
+        reason_text = request.form.get("reason", None)
+        try:
+            sent_ok = False
+            # Primary: use centralized helper from app.email_utils
+            try:
+                # helper may accept (rental, borrower, reason) — try that first
+                sent_ok = send_order_rejected_email(rental, borrower, reason=reason_text)
+            except TypeError:
+                # fallback if helper signature different
+                try:
+                    sent_ok = send_order_rejected_email(rental, borrower)
+                except Exception:
+                    sent_ok = False
+            except Exception:
+                # other exceptions from helper
+                current_app.logger.exception("send_order_rejected_email raised while sending for rental %s", rental.id)
+                sent_ok = False
+
+            # If helper didn't send (returned False or None), use inline fallback
+            if not sent_ok:
+                subject = f"[Rentalkuy] Pesanan #{rental.id} Ditolak"
+                body = (
+                    f"Halo {borrower.username if borrower else 'Pelanggan'},\n\n"
+                    f"Pesanan #{getattr(rental, 'public_id', rental.id)} telah ditolak. Jika ingin mengajukan ulang, silakan hubungi admin.\n\n"
+                    "Terima kasih,\nRentalkuy"
+                )
+
+                html_fallback = None
+                try:
+                    html_fallback = render_template(
+                        "emails/order_rejected.html",
+                        rental=rental,
+                        borrower=borrower,
+                        buyer=borrower,
+                        reason=reason_text,
+                        dashboard_url=(request.url_root or "").rstrip("/"),
+                        mail_footer=current_app.config.get("MAIL_FOOTER", "Rentalkuy · Jl. Contoh No.1 · 0896-7833-XXXX"),
+                    )
+                except Exception:
+                    current_app.logger.exception("Gagal merender order_rejected.html untuk fallback (rental %s)", rental.id)
+                    html_fallback = None
+
+                _safe_send_email(subject, [borrower.email], body, html_body=html_fallback)
+        except Exception:
+            current_app.logger.exception("Gagal mengirim email penolakan untuk rental %s", rental.id)
 
     if current_user.role == "staff":
         return redirect(url_for("staff.dashboard"))
@@ -404,7 +523,7 @@ def reject_rental(rental_id):
 # ==========================================================
 @admin_bp.route("/items/delete/<int:item_id>", methods=["POST"])
 @login_required
-@admin_required
+@admin_2fa_required
 def delete_item(item_id):
     item = Item.query.get_or_404(item_id)
     db.session.delete(item)
@@ -418,14 +537,8 @@ def delete_item(item_id):
 # ==========================================================
 @admin_bp.route("/staff", methods=["GET", "POST"])
 @login_required
-@admin_required
+@admin_2fa_required
 def manage_staff():
-    """
-    Tambah staf + daftar pengguna (non-admin) dengan pagination.
-    Query params:
-      - page (int)
-      - per_page (int)
-    """
     form = AddStaffForm()
     if form.validate_on_submit():
         hashed_password = bcrypt.generate_password_hash(form.password.data).decode("utf-8")
@@ -449,7 +562,7 @@ def manage_staff():
 # ==========================================================
 @admin_bp.route("/staff/edit/<int:user_id>", methods=["GET", "POST"])
 @login_required
-@admin_required
+@admin_2fa_required
 def edit_user(user_id):
     user = User.query.get_or_404(user_id)
     if user.role == "admin":
@@ -478,17 +591,14 @@ def edit_user(user_id):
 # ==========================================================
 @admin_bp.route("/staff/delete/<int:user_id>", methods=["POST"])
 @login_required
-@admin_required
+@admin_2fa_required
 def delete_user(user_id):
     user = User.query.get_or_404(user_id)
 
-    # 1. Tidak boleh hapus diri sendiri atau admin lain
     if user.role == "admin" or user.id == current_user.id:
         flash("Anda tidak bisa menghapus akun Anda sendiri atau akun admin lain.", "danger")
         return redirect(url_for("admin.manage_staff"))
 
-
-    # 2. Cek apakah user ini punya riwayat reservasi
     has_rental = Rental.query.filter_by(user_id=user.id).first()
 
     if has_rental:
@@ -498,7 +608,6 @@ def delete_user(user_id):
         )
         return redirect(url_for("admin.manage_staff"))
 
-    # 3. Aman: user tidak punya rental -> boleh dihapus
     db.session.delete(user)
     db.session.commit()
     flash(f"Pengguna '{user.username}' telah berhasil dihapus.", "success")
@@ -510,7 +619,7 @@ def delete_user(user_id):
 # ==========================================================
 @admin_bp.route("/calendar_data")
 @login_required
-@admin_required
+@admin_2fa_required
 def calendar_data():
     rentals = Rental.query.filter((Rental.order_status == "ACC") | (Rental.payment_status == "Pengambilan")).all()
 
@@ -541,7 +650,7 @@ def calendar_data():
 
 
 # ==========================================================
-# 15. KONFIRMASI PEMBAYARAN
+# 15. KONFIRMASI PEMBAYARAN (USE email_utils helper) - CLEAN
 # ==========================================================
 @admin_bp.route("/reservations/confirm_payment/<int:rental_id>", methods=["POST"])
 @login_required
@@ -553,6 +662,14 @@ def confirm_payment(rental_id):
     db.session.commit()
 
     flash(f"Pembayaran untuk Reservasi #{rental.id} telah dikonfirmasi.", "success")
+
+    borrower = getattr(rental, "borrower", None)
+    if borrower and getattr(borrower, "email", None):
+        try:
+            # central safe helper does rendering/sending
+            send_payment_confirmed_email(rental, borrower)
+        except Exception:
+            current_app.logger.exception("Gagal mengirim email konfirmasi pembayaran untuk rental %s", rental.id)
 
     if current_user.role == "staff":
         return redirect(url_for("staff.dashboard"))
@@ -573,13 +690,23 @@ def mark_as_taken(rental_id):
 
     flash(f"Reservasi #{rental.id} telah diambil oleh penyewa.", "info")
 
+    borrower = rental.borrower
+    if borrower and getattr(borrower, "email", None):
+        subject = f"[Rentalkuy] Reservasi #{rental.id} - Siap Diambil"
+        body = (
+            f"Halo {borrower.username},\n\n"
+            f"Reservasi #{rental.id} sudah siap diambil.\n\n"
+            "Terima kasih,\nRentalkuy"
+        )
+        _safe_send_email(subject, [borrower.email], body)
+
     if current_user.role == "staff":
         return redirect(url_for("staff.dashboard"))
     return redirect(url_for("admin.manage_reservations"))
 
 
 # ==========================================================
-# 17. TANDAI SELESAI / KEMBALI
+# 17. TANDAI SELESAI / KEMBALI (USE email_utils helper)
 # ==========================================================
 @admin_bp.route("/reservations/return/<int:rental_id>", methods=["POST"])
 @login_required
@@ -595,6 +722,13 @@ def mark_as_returned(rental_id):
     db.session.commit()
 
     flash(f"Reservasi #{rental.id} telah Selesai. Stok barang telah dikembalikan.", "success")
+
+    borrower = rental.borrower
+    if borrower and getattr(borrower, "email", None):
+        try:
+            send_reservation_completed_email(rental, borrower)
+        except Exception:
+            current_app.logger.exception("Gagal mengirim email selesai reservasi untuk rental %s", rental.id)
 
     if current_user.role == "staff":
         return redirect(url_for("staff.dashboard"))

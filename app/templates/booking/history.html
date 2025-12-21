@@ -1,77 +1,226 @@
+{# templates/booking/history.html - FULL REPLACE #}
 {% extends "base.html" %}
 
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<main class="container" style="padding-top: 76px;">
+<main class="container" style="padding-top: 86px; padding-bottom: 50px;">
     {% include 'flash_messages.html' %}
 
-    <div class="row">
+    <div class="row justify-content-center">
         <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h2 class="mb-4">Riwayat Peminjaman Saya</h2>
-                    <p>Di sini Anda bisa melacak status semua pesanan Anda.</p>
-                    
-                    <table class="table table-hover align-middle">
-                        <thead>
-                            <tr>
-                                <th scope="col">ID Pesanan</th>
-                                <th scope="col">Tgl Ambil</th>
-                                <th scope="col">Total Harga</th>
-                                <th scope="col">Status Order</th>
-                                <th scope="col">Status Bayar</th>
-                                <th scope="col">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for rental in rentals %}
-                            <tr>
-                                <td><strong>#{{ rental.id }}</strong></td>
-                                <td>{{ rental.pickup_date.strftime('%d-%m-%Y') }}</td>
-                                <td>Rp {{ "{:,.0f}".format(rental.total_price) }}</td>
-                                <td>
-                                    {% if rental.order_status == 'Ditinjau' %}
-                                        <span class="badge bg-warning text-dark">{{ rental.order_status }}</span>
-                                    {% elif rental.order_status == 'ACC' %}
-                                        <span class="badge bg-success">{{ rental.order_status }}</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">{{ rental.order_status }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if rental.payment_status == 'Ditinjau' %}
-                                        <span class="badge bg-secondary">{{ rental.payment_status }}</span>
-                                    {% elif rental.payment_status == 'Belum Bayar' %}
-                                        <span class="badge bg-warning text-dark">{{ rental.payment_status }}</span>
-                                    {% elif rental.payment_status == 'Menunggu Konfirmasi' %}
-                                        <span class="badge bg-info text-dark">{{ rental.payment_status }}</span>
-                                    {% else %}
-                                        <span class="badge bg-success">{{ rental.payment_status }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if rental.order_status == 'ACC' and rental.payment_status == 'Belum Bayar' %}
-                                        <a href="{{ url_for('booking.upload_payment', rental_id=rental.id) }}" class="btn btn-sm btn-success">
-                                            Bayar Sekarang
-                                        </a>
-                                    {% elif rental.payment_status == 'Menunggu Konfirmasi' %}
-                                        <span class="text-muted">Menunggu...</span>
-                                    {% else %}
-                                        <span class="text-muted">--</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                            
-                            {% if not rentals %}
-                            <tr>
-                                <td colspan="6" class="text-center">Anda belum memiliki riwayat peminjaman.</td>
-                            </tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold mb-1"><i class="fas fa-history text-primary me-2"></i>Riwayat Peminjaman</h2>
+                    <p class="text-muted mb-0">Pantau status pesanan dan pembayaran Anda di sini.</p>
                 </div>
+                <div>
+                    <a href="{{ url_for('catalog.list_items') }}" class="btn btn-primary btn-sm shadow-sm">
+                        <i class="fas fa-plus me-1"></i> Sewa Lagi
+                    </a>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="table-layout: fixed; min-width: 900px;">
+                            <thead class="bg-light text-secondary border-bottom">
+                                <tr>
+                                    <th scope="col" class="py-3 ps-4" style="width: 18%;"><i class="fas fa-hashtag me-1"></i> ID Pesanan</th>
+                                    <th scope="col" class="py-3" style="width: 15%;"><i class="fas fa-calendar-alt me-1"></i> Tgl Ambil</th>
+                                    <th scope="col" class="py-3" style="width: 15%;"><i class="fas fa-tag me-1"></i> Total</th>
+                                    <th scope="col" class="py-3 text-center" style="width: 12%;">Status Order</th>
+                                    <th scope="col" class="py-3 text-center" style="width: 15%;">Status Bayar</th>
+                                    <th scope="col" class="py-3 pe-4 text-end" style="width: 25%;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rental in rentals.items %}
+                                <tr>
+                                    <td class="ps-4 text-truncate">
+                                        <span class="fw-bold text-dark font-monospace">
+                                            {{ rental.public_id if rental.public_id else "#" ~ rental.id }}
+                                        </span>
+                                    </td>
+                                    
+                                    <td class="text-nowrap">
+                                        <span class="text-secondary">
+                                            {{ rental.pickup_date.strftime('%d %b %Y') }}
+                                        </span>
+                                    </td>
+
+                                    <td class="fw-bold text-dark text-nowrap">
+                                        Rp {{ "{:,.0f}".format(rental.total_price) }}
+                                    </td>
+
+                                    <td class="text-center">
+                                        {% if rental.order_status == 'Ditinjau' %}
+                                            <span class="badge rounded-pill bg-warning text-dark border border-warning text-nowrap">Ditinjau</span>
+                                        {% elif rental.order_status == 'ACC' %}
+                                            <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success text-nowrap">Disetujui</span>
+                                        {% else %}
+                                            <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger border border-danger text-nowrap">Ditolak</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td class="text-center">
+                                        {% if rental.payment_status == 'Ditinjau' %}
+                                            <span class="badge bg-light text-secondary border text-nowrap">Review</span>
+                                        {% elif rental.payment_status == 'Belum Bayar' %}
+                                            <span class="badge bg-danger text-white text-nowrap">Belum Bayar</span>
+                                        {% elif rental.payment_status == 'Menunggu Konfirmasi' %}
+                                            <span class="badge bg-info text-dark text-nowrap">Verifikasi</span>
+                                        {% elif rental.payment_status == 'Pengambilan' %}
+                                            <span class="badge bg-primary text-nowrap">Siap Diambil</span>
+                                        {% elif rental.payment_status == 'Selesai' %}
+                                            <span class="badge bg-success text-nowrap">Selesai</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary text-nowrap">{{ rental.payment_status }}</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td class="text-end pe-4">
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ rental.id }}">
+                                                <i class="fas fa-eye"></i> Detail
+                                            </button>
+
+                                            {% if rental.order_status == 'Ditolak' %}
+                                                <button class="btn btn-sm btn-danger disabled border-0" title="Ditolak"><i class="fas fa-times"></i></button>
+
+                                            {% elif rental.order_status == 'Ditinjau' %}
+                                                <button class="btn btn-sm btn-warning disabled border-0 text-white" title="Menunggu Review"><i class="fas fa-clock"></i></button>
+
+                                            {% elif rental.payment_status == 'Selesai' %}
+                                                <button class="btn btn-sm btn-success disabled border-0" title="Selesai"><i class="fas fa-check"></i></button>
+
+                                            {% elif rental.order_status == 'ACC' and rental.payment_status == 'Belum Bayar' %}
+                                                <a href="{{ url_for('booking.upload_payment', rental_id=rental.id) }}" class="btn btn-sm btn-primary shadow-sm px-3">
+                                                    Bayar
+                                                </a>
+
+                                            {% elif rental.payment_status == 'Menunggu Konfirmasi' %}
+                                                <button class="btn btn-sm btn-secondary disabled" style="opacity: 0.7;">Proses</button>
+
+                                            {% elif rental.payment_status == 'Pengambilan' %}
+                                                 <button class="btn btn-sm btn-info text-white disabled border-0"><i class="fas fa-box-open"></i></button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <div class="modal fade" id="detailModal{{ rental.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                                        <div class="modal-content border-0 shadow">
+                                            <div class="modal-header bg-light">
+                                                <h5 class="modal-title fw-bold">
+                                                    Detail Pesanan: <span class="text-primary">{{ rental.public_id if rental.public_id else "#" ~ rental.id }}</span>
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body p-4">
+                                                <h6 class="fw-bold mb-3 text-secondary">Barang yang disewa:</h6>
+                                                
+                                                {% for rental_item in rental.items %}
+                                                <div class="card mb-3 border rounded-3 overflow-hidden">
+                                                    <div class="row g-0">
+                                                        <div class="col-md-3 bg-light d-flex align-items-center justify-content-center p-2">
+                                                            <img src="{{ url_for('static', filename='uploads/items/' ~ rental_item.item.image_filename) }}" 
+                                                                 class="img-fluid rounded" 
+                                                                 style="max-height: 80px; object-fit: contain;" 
+                                                                 alt="{{ rental_item.item.name }}">
+                                                        </div>
+                                                        <div class="col-md-9">
+                                                            <div class="card-body py-2">
+                                                                <h5 class="card-title fw-bold text-dark mb-1" style="font-size: 1rem;">{{ rental_item.item.name }}</h5>
+                                                                <span class="badge bg-secondary mb-2" style="font-size: 0.7rem;">{{ rental_item.item.category.name if rental_item.item.category else 'Umum' }}</span>
+                                                                
+                                                                <div class="d-flex justify-content-between align-items-end mt-1">
+                                                                    <div class="text-muted small">
+                                                                        <i class="far fa-clock me-1"></i> Durasi: <strong>{{ rental_item.duration_hours }} Jam</strong>
+                                                                    </div>
+                                                                    <div class="text-end">
+                                                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Harga:</small>
+                                                                        <span class="fw-bold text-primary">
+                                                                            Rp {{ "{:,.0f}".format(rental_item.price_at_checkout) }}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+
+                                                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                                                    <span class="text-muted">Total Tagihan:</span>
+                                                    <h4 class="fw-bold text-primary m-0">Rp {{ "{:,.0f}".format(rental.total_price) }}</h4>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer bg-light">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                
+                                {% if not rentals.items %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="fas fa-shopping-basket fa-3x mb-3 text-secondary opacity-25"></i>
+                                            <p>Belum ada riwayat pesanan.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {% if rentals.pages > 1 %}
+                <div class="card-footer bg-white py-3 border-top">
+                    <nav aria-label="Navigasi Halaman">
+                        <ul class="pagination justify-content-center mb-0">
+                            
+                            <li class="page-item {% if not rentals.has_prev %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('booking.history', page=rentals.prev_num) if rentals.has_prev else '#' }}" tabindex="-1">
+                                    Previous
+                                </a>
+                            </li>
+
+                            {% for page_num in rentals.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                {% if page_num %}
+                                    {% if page_num == rentals.page %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('booking.history', page=page_num) }}">{{ page_num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <li class="page-item {% if not rentals.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('booking.history', page=rentals.next_num) if rentals.has_next else '#' }}">
+                                    Next
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+                
             </div>
         </div>
     </div>

@@ -1,35 +1,167 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Reservasi Diterima</title>
-  </head>
-  <body style="font-family: Arial, sans-serif; color:#222;">
-    <div style="max-width:680px;margin:0 auto;padding:16px;">
-      <h2 style="color:#0d6efd">Reservasi Anda Diterima — Rentalkuy</h2>
-      <p>Halo {{ borrower.username }},</p>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pesanan Disetujui</title>
+  <style>
+    /* Minimal head styles (safe). Utamakan inline styles di email clients. */
+    body { margin:0; padding:0; background:#f4f6f8; -webkit-text-size-adjust:none; -ms-text-size-adjust:none; }
+    table { border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; }
+    img { border:0; line-height:100%; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+    a { color:#2563eb; text-decoration:none; }
+  </style>
+</head>
+<body style="margin:0; padding:0; background:#f4f6f8;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f4f6f8; width:100%; padding:30px 0;">
+    <tr>
+      <td align="center">
+        <table width="680" cellpadding="0" cellspacing="0" role="presentation" style="width:100%; max-width:680px; background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,0.06);">
+          <tr>
+            <td style="background:linear-gradient(90deg,#2b6ef6,#6f8cff); padding:20px 28px; color:#ffffff;">
+              <h1 id="title" style="margin:0; font-size:20px; font-weight:600; font-family:Arial,Helvetica,sans-serif;">Pesanan Diterima — Rentalkuy</h1>
+            </td>
+          </tr>
 
-      <p>
-        Reservasi Anda dengan <strong>ID #{{ rental.id }}</strong> telah disetujui oleh admin.
-        Silakan lanjutkan ke proses pembayaran agar reservasi diproses lebih lanjut.
-      </p>
+          <tr>
+            <td style="padding:22px 28px; font-family:Arial,Helvetica,sans-serif; color:#1f2937; font-size:15px; line-height:1.5;">
+              {# Tentukan penerima: buyer dulu, lalu borrower #}
+              {% set _person = buyer if (buyer is defined and buyer) else (borrower if (borrower is defined and borrower) else None) %}
+              {% if _person %}
+                {% set _name = (_person.username if (_person.username is defined and _person.username) else (_person.email if (_person.email is defined and _person.email) else 'Pengguna')) %}
+              {% else %}
+                {% set _name = 'Pengguna' %}
+              {% endif %}
 
-      <p>
-        <strong>Ringkasan Pesanan:</strong><br/>
-        Tanggal Ambil: {{ rental.pickup_date.strftime('%d-%m-%Y') if rental.pickup_date else '-' }}<br/>
-        Total Harga: Rp {{ "{:,.0f}".format(rental.total_price|float) if rental.total_price else '-' }}<br/>
-      </p>
+              <p style="margin:0 0 12px 0; font-family:Arial,Helvetica,sans-serif;">Halo <strong style="font-weight:600;">{{ _name }}</strong>,</p>
 
-      <p>
-        Anda dapat melihat detail pesanan dan instruksi pembayaran di halaman admin/riwayat:
-        <a href="{{ url_for('admin.manage_reservations', _external=True) }}">Lihat Reservasi</a>.
-      </p>
+              <p style="margin:0 0 12px 0; color:#6b7280; font-size:13px;">Pesanan Anda telah <strong>disetujui</strong> oleh admin. Berikut informasi singkat pesanan Anda.</p>
 
-      <hr/>
-      <p style="color:#666;font-size:0.9rem;">
-        Jika ini bukan Anda atau ada kendala, silakan hubungi admin.
-      </p>
-      <p>Terima kasih,<br/>Tim Rentalkuy</p>
-    </div>
-  </body>
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f8fafc; padding:12px; border-radius:6px; margin:12px 0; font-size:13px; color:#374151;">
+                <tr>
+                  <td style="padding:6px 0; vertical-align:top; font-family:Arial,Helvetica,sans-serif;">
+                    <strong>Order ID:</strong>
+                    <span style="color:#2563eb; font-weight:bold;">
+                      {# LOGIC UPDATE: Sama persis dengan history.html #}
+                      {% if rental is defined %}
+                        {{ rental.public_id if rental.public_id else "#" ~ rental.id }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </span>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:6px 0; vertical-align:top; font-family:Arial,Helvetica,sans-serif;">
+                    <strong>Tanggal Pengambilan:</strong>
+                    <span>
+                      {% if rental is defined and rental.pickup_date %}
+                        {{ rental.pickup_date.strftime('%d-%m-%Y %H:%M') }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </span>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:6px 0; vertical-align:top; font-family:Arial,Helvetica,sans-serif;">
+                    <strong>Status Pesanan:</strong> <span>{{ (rental.order_status if (rental is defined and rental.order_status) else 'N/A') }}</span>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:6px 0 0 0; vertical-align:top; font-family:Arial,Helvetica,sans-serif;">
+                    <strong>Status Pembayaran:</strong> <span>{{ (rental.payment_status if (rental is defined and rental.payment_status) else 'N/A') }}</span>
+                  </td>
+                </tr>
+              </table>
+
+              <h3 style="margin:6px 0 8px 0; font-size:16px; font-family:Arial,Helvetica,sans-serif;">Detail Item</h3>
+
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:8px;">
+                {% if rental is defined and rental.items %}
+                  {% for ri in rental.items %}
+                    <tr>
+                      <td style="padding:8px 0;">
+                        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                          <tr>
+                            <td style="vertical-align:top; font-family:Arial,Helvetica,sans-serif;">
+                              <div style="font-size:14px; color:#111827;">
+                                {{ (ri.item.name if (ri.item is defined and ri.item and ri.item.name) else 'Item') }}
+                              </div>
+                              {% if ri.duration_hours %}
+                                <div style="font-size:12px; color:#6b7280; margin-top:4px;">Durasi: {{ ri.duration_hours }} jam</div>
+                              {% endif %}
+                            </td>
+
+                            <td style="vertical-align:top; text-align:right; font-family:Arial,Helvetica,sans-serif;">
+                              <div style="font-size:13px; color:#6b7280;">
+                                {% if ri.price_at_checkout is defined and ri.price_at_checkout is not none %}
+                                  Rp {{ "{:,.0f}".format(ri.price_at_checkout|float) }}
+                                {% else %}
+                                  Rp —
+                                {% endif %}
+                              </div>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td style="padding:8px 0; font-family:Arial,Helvetica,sans-serif; color:#6b7280;">Tidak ada item tercatat pada pesanan ini.</td>
+                  </tr>
+                {% endif %}
+              </table>
+
+              <p style="margin:12px 0 0 0; font-family:Arial,Helvetica,sans-serif;">
+                <strong>Total:</strong>
+                {% if rental is defined and rental.total_price is not none %}
+                  Rp {{ "{:,.0f}".format(rental.total_price|float) }}
+                {% else %}
+                  -
+                {% endif %}
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:16px 0 16px 0;">
+                <tr>
+                  <td style="height:1px; background:#eef2f7; line-height:1px;">&nbsp;</td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 12px 0; font-family:Arial,Helvetica,sans-serif;">
+                Silakan masuk ke
+                {% if dashboard_url is defined and dashboard_url %}
+                  <a href="{{ dashboard_url }}" style="color:#2563eb;">dashboard akun Anda</a>
+                {% else %}
+                  <a href="{{ url_for('auth.login', _external=True) }}" style="color:#2563eb;">dashboard akun Anda</a>
+                {% endif %}
+                untuk melihat detail lebih lengkap dan petunjuk pembayaran.
+              </p>
+
+              <p style="margin:10px 0 0 0;">
+                {% if dashboard_url is defined and dashboard_url %}
+                  <a href="{{ dashboard_url }}" style="display:inline-block; background:#2563eb; color:#ffffff; padding:10px 16px; border-radius:6px; font-weight:600; text-decoration:none; font-family:Arial,Helvetica,sans-serif;">Cek Dashboard</a>
+                {% else %}
+                  <a href="{{ url_for('auth.login', _external=True) }}" style="display:inline-block; background:#2563eb; color:#ffffff; padding:10px 16px; border-radius:6px; font-weight:600; text-decoration:none; font-family:Arial,Helvetica,sans-serif;">Cek Dashboard</a>
+                {% endif %}
+              </p>
+
+              <p style="margin-top:18px; color:#6b7280; font-size:13px; font-family:Arial,Helvetica,sans-serif;">Jika ada kendala, balas email ini atau hubungi admin. Terima kasih telah menggunakan Rentalkuy!</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:18px 28px; font-size:13px; color:#6b7280; text-align:center; background:#fcfdff; font-family:Arial,Helvetica,sans-serif;">
+              {{ mail_footer if (mail_footer is defined and mail_footer) else "Rentalkuy · Alamat contoh · 08xx-xxxx-xxxx" }}
+            </td>
+          </tr>
+        </table>
+        </td>
+    </tr>
+  </table>
+</body>
 </html>

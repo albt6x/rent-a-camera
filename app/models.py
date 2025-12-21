@@ -1,4 +1,5 @@
 # app/models.py
+import secrets
 from app import db
 from flask_login import UserMixin
 from datetime import datetime
@@ -78,6 +79,11 @@ class Rental(db.Model):
     __tablename__ = 'rentals'
     
     id = db.Column(db.Integer, primary_key=True)
+
+    # PUBLIC ID untuk tampilan/email (unik, tidak menggantikan PK internal)
+    # Format default: RK- + 8 hex uppercase (contoh: RK-A1B2C3D4)
+    public_id = db.Column(db.String(32), unique=True, nullable=True, default=lambda: "RK-" + secrets.token_hex(4).upper())
+
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     pickup_date = db.Column(db.DateTime, nullable=False)
     total_price = db.Column(db.Numeric(10, 2), nullable=False)
@@ -99,7 +105,8 @@ class Rental(db.Model):
     items = db.relationship('RentalItem', backref='rental', lazy=True)
 
     def __repr__(self):
-        return f"Rental('{self.id}', 'User: {self.user_id}', 'Status: {self.order_status}')"
+        pid = self.public_id if getattr(self, "public_id", None) else self.id
+        return f"Rental('{pid}', 'User: {self.user_id}', 'Status: {self.order_status}')"
 
 
 # ==========================================================

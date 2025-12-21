@@ -1,0 +1,59 @@
+{% extends "base_auth.html" %}
+{% block title %}Verifikasi 2FA{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height:100vh;">
+  <div
+    class="card shadow"
+    style="max-width:420px;width:100%;border-radius:14px;"
+  >
+    <div class="card-body text-center p-4">
+
+      <!-- Title -->
+      <h4 class="mb-2 fw-semibold">Verifikasi 2FA</h4>
+
+      <!-- Subtitle -->
+      <p class="text-muted mb-4" style="font-size:0.95rem;">
+        Halo <strong>{{ username }}</strong><br>
+        Masukkan kode <strong>6 digit</strong> dari aplikasi autentikator Anda
+      </p>
+
+      <!-- Form -->
+      <form method="POST" action="{{ url_for('twofa.twofa_login_verify') }}">
+        <input
+          type="tel"
+          name="code"
+          class="form-control text-center mb-3"
+          placeholder="123456"
+          pattern="\d{6}"
+          maxlength="6"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          required
+          autofocus
+          style="
+            letter-spacing:6px;
+            font-size:1.25rem;
+            padding:12px;
+          "
+        >
+
+        <button type="submit" class="btn btn-primary w-100 py-2">
+          Verifikasi
+        </button>
+      </form>
+
+      <!-- Back -->
+      <div class="mt-3">
+        <a
+          href="{{ url_for('auth.login') }}"
+          class="small text-muted text-decoration-none"
+        >
+          ← Kembali ke login
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

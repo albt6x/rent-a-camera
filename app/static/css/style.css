@@ -16,11 +16,11 @@
 /* 2. Gunakan Font Poppins di seluruh website */
 body {
     background-color: var(--light-bg);
-    font-family: 'Poppins', sans-serif; /* <-- FONT BARU! */
+    font-family: 'Poppins', sans-serif;
     color: var(--dark-text);
 }
 
-/* 3. Ubah warna Navbar (bg-dark) */
+/* 3. Navbar */
 .navbar.bg-dark {
     background-color: var(--primary-theme) !important;
 }
@@ -31,11 +31,11 @@ body {
     border-color: var(--secondary-theme);
 }
 .btn-primary:hover {
-    background-color: #148aa6; /* Sedikit lebih gelap saat di-hover */
+    background-color: #148aa6;
     border-color: #148aa6;
 }
 
-/* 5. Ubah warna Link (misal di 'card' katalog) */
+/* 5. Link */
 a {
     color: var(--secondary-theme);
 }
@@ -46,6 +46,76 @@ a:hover {
     color: var(--dark-text) !important;
 }
 
+/* ========================================= */
+/* === AUTH FORM — LOGIN & REGISTER (BARU) === */
+/* ========================================= */
+
+/* Card login/register */
+.auth-card,
+.card.shadow-sm {
+    border-radius: 0.85rem;
+    border: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+}
+
+/* Judul minimalis */
+.auth-title,
+.card-body h2 {
+    font-size: 1.25rem !important;
+    font-weight: 600;
+    margin-bottom: 1.2rem !important;
+    text-align: center;
+}
+
+/* Label form */
+.form-label {
+    font-size: 0.78rem !important;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: #444;
+}
+
+/* Input */
+.form-control-lg {
+    font-size: 0.9rem !important;
+    padding: 0.55rem 0.9rem !important;
+    border-radius: 0.55rem;
+}
+
+/* Spacing antar field */
+.card-body .mb-3 {
+    margin-bottom: 0.75rem !important;
+}
+
+/* Toggle show password */
+.toggle-password {
+    border: none;
+    border-left: 1px solid #ddd;
+    width: 42px;
+    background: #f7f7f7;
+}
+.toggle-password:hover {
+    background: #ececec;
+}
+
+/* Checkbox text */
+.form-check-label {
+    font-size: 0.82rem !important;
+}
+
+/* Tombol submit */
+.btn-lg {
+    padding: 0.6rem !important;
+    font-size: 0.9rem !important;
+    font-weight: 600;
+    border-radius: 0.55rem;
+}
+
+/* Link kecil bawah */
+.auth-small,
+.text-muted {
+    font-size: 0.82rem !important;
+}
 
 /* ========================================= */
 /* === LAYOUT SIDEBAR ADMIN === */
@@ -70,18 +140,15 @@ a:hover {
     border: none;
     border-radius: 0.3rem;
     margin: 0.2rem 0.5rem;
-    color: var(--dark-text); /* Ubah warna teks menu */
+    color: var(--dark-text);
     font-weight: 500;
 }
-
-/* Ubah warna menu admin yang 'aktif' */
 .admin-sidebar .list-group-item-action.active,
 .admin-sidebar .list-group-item-action.active:hover {
-    background-color: var(--primary-theme); /* <-- WARNA AKTIF & HOVER AKTIF */
+    background-color: var(--primary-theme);
     border-color: var(--primary-theme);
     color: #fff;
 }
-
 .admin-sidebar .list-group-item-action:hover {
     background-color: #f1f1f1;
 }
@@ -89,8 +156,6 @@ a:hover {
 /* ========================================= */
 /* === STYLING LAINNYA === */
 /* ========================================= */
-
-/* Ubah warna filter katalog yang 'aktif' */
 .list-group-item.active {
     background-color: var(--secondary-theme);
     border-color: var(--secondary-theme);
@@ -100,12 +165,15 @@ a:hover {
     border: none;
     border-radius: 0.5rem;
 }
+
 .fc-header-toolbar {
     padding-bottom: 10px;
 }
+
 .fc-daygrid-day-number {
     font-weight: 500;
 }
+
 .item-description {
     white-space: pre-wrap;
     font-size: 0.95rem;
@@ -154,78 +222,58 @@ a:hover {
 }
 
 /* ========================================= */
-/* === ITEM CARD BUTTON STYLES (DETAIL & DURATION) === */
+/* === ITEM CARD BUTTON STYLES === */
 /* ========================================= */
-
-/* Tombol "View/Lihat Detail Spesifikasi" */
 .detail-spec-btn {
     border-radius: 999px;
     font-weight: 500;
     border-width: 1.5px;
     color: var(--secondary-theme);
     border-color: var(--secondary-theme);
-    background-color: transparent;
-    transition:
-        background-color 0.2s ease,
-        color 0.2s ease,
-        border-color 0.2s ease;
+    background: transparent;
 }
-
 .detail-spec-btn:hover {
     background-color: var(--secondary-theme);
     color: #ffffff;
     border-color: var(--secondary-theme);
-    text-decoration: none;
 }
 
-/* Tombol pilihan durasi (12 Jam / 24 Jam) */
 .duration-btn {
     border-radius: 999px;
     padding: 0.25rem 0.9rem;
     font-weight: 500;
     border-width: 1.5px;
-    background-color: transparent;
     color: #6c757d;
     border-color: #ced4da;
-    transition:
-        background-color 0.2s ease,
-        color 0.2s ease,
-        border-color 0.2s ease;
 }
-
 .duration-btn:hover {
     background-color: var(--secondary-theme);
     color: #ffffff;
     border-color: var(--secondary-theme);
 }
-
-/* Jarak kecil antara tombol 12 & 24 */
 .duration-btn + .duration-btn {
     margin-left: 0.35rem;
 }
 
 /* ========================================= */
-/* === ADMIN: TABEL MANAJEMEN RESERVASI === */
+/* === ADMIN TABEL === */
 /* ========================================= */
-
-/* Card di area admin biar lebih “ngangkat” dikit */
 .admin-content .card {
     border-radius: 0.75rem;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
 }
 .admin-content .card .card-body {
-    padding: 1.75rem 1.75rem;
+    padding: 1.75rem;
 }
 
-/* Header tabel Manajemen Reservasi */
 .admin-content h2 {
     font-weight: 700;
 }
+
 .admin-content p.text-muted {
     font-size: 0.92rem;
 }
 
-/* Tabel reservasi */
 .admin-content .table {
     font-size: 0.9rem;
     margin-bottom: 0;
@@ -243,18 +291,16 @@ a:hover {
     background-color: #f8fafc;
 }
 
-.admin-content .table th,
-.admin-content .table td {
+.admin-content .table td,
+.admin-content .table th {
     vertical-align: middle;
 }
 
-/* Biar kolom ID dan Pemesan agak menonjol */
 .admin-content .table td:first-child,
 .admin-content .table th:first-child {
     font-weight: 600;
 }
 
-/* Badge global jadi pill yang rapi */
 .badge {
     border-radius: 999px;
     padding: 0.35rem 0.8rem;
@@ -262,7 +308,6 @@ a:hover {
     font-size: 0.75rem;
 }
 
-/* Sedikit rapihin tombol di kolom Aksi */
 .admin-content .btn.btn-sm {
     border-radius: 999px;
     padding-inline: 0.9rem;

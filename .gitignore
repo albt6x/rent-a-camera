@@ -1,0 +1,21 @@
+# Python bytecode (Sampah sistem)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment (Sangat berat, jangan di-push)
+venv/
+env/
+ENV/
+
+# Database (Data sensitif & file lokal)
+*.sqlite3
+*.db
+
+# Secrets & Config (KUNCI RAHASIA!)
+.env
+
+# Folder Uploads (Opsional)
+# Jika kamu tidak ingin foto-foto testing kamu masuk ke GitHub
+app/static/uploads/*
+app/uploads/*

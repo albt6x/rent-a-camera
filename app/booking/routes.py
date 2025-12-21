@@ -1,10 +1,10 @@
-# app/booking/routes.py
-from flask import render_template, redirect, url_for, flash, Blueprint, abort
+# app/booking/routes.py (FULL REPLACE)
+from flask import render_template, redirect, url_for, flash, Blueprint, abort, request
 from flask_login import login_required, current_user
 from app import db
 from app.models import Rental
-from app.utils import save_picture # <-- 1. IMPORT FUNGSI HELPER
-from app.forms import PaymentUploadForm # <-- 2. IMPORT FORM BARU
+from app.utils import save_picture
+from app.forms import PaymentUploadForm
 
 # Buat blueprint
 booking_bp = Blueprint('booking', __name__)
@@ -16,7 +16,14 @@ booking_bp = Blueprint('booking', __name__)
 @booking_bp.route('/history')
 @login_required # Hanya user ter-login yang bisa lihat
 def history():
-    rentals = Rental.query.filter_by(user_id=current_user.id).order_by(Rental.created_at.desc()).all()
+    # Ambil parameter halaman dari URL (misal ?page=2), default hal 1
+    page = request.args.get('page', 1, type=int)
+    
+    # Ganti .all() dengan .paginate()
+    # per_page=5 artinya 1 halaman isinya 5 pesanan
+    rentals = Rental.query.filter_by(user_id=current_user.id)\
+        .order_by(Rental.created_at.desc())\
+        .paginate(page=page, per_page=10) 
     
     return render_template('booking/history.html', 
                            title='Riwayat Peminjaman Saya',
@@ -24,7 +31,7 @@ def history():
 
 
 # ==========================================================
-# RUTE UNTUK UPLOAD BUKTI PEMBAYARAN (BARU!)
+# RUTE UNTUK UPLOAD BUKTI PEMBAYARAN
 # ==========================================================
 @booking_bp.route('/payment/<int:rental_id>', methods=['GET', 'POST'])
 @login_required
@@ -45,7 +52,6 @@ def upload_payment(rental_id):
         # Cek apakah ada file
         if form.proof.data:
             # Simpan gambar menggunakan helper kita
-            # Kita simpan ke folder 'PAYMENT_UPLOAD_FOLDER'
             filename = save_picture(form.proof.data, 'PAYMENT_UPLOAD_FOLDER', output_size=(800, 800))
             
             # Update database

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Register Account - Camera Rental{% endblock %}
+{% block title %}Daftar Akun - Rental Kamera{% endblock %}
 
 {% block content %}
 <main class="container" style="padding-top: 76px;">
@@ -17,13 +17,13 @@
 
             <div class="card shadow-sm">
                 <div class="card-body p-4 p-md-5">
-                    <h2 class="text-center mb-4">Create New Account</h2>
+                    <h2 class="text-center mb-4">Buat Akun Baru</h2>
                     
                     <form method="POST" action="">
                         {{ form.hidden_tag() }}
 
                         <div class="mb-3">
-                            {{ form.username.label(class="form-label") }}
+                            <label for="{{ form.username.id }}" class="form-label">Nama Pengguna</label>
                             <div class="input-group has-validation">
                                 {{ form.username(class="form-control form-control-lg" + (" is-invalid" if form.username.errors else "")) }}
                                 {% if form.username.errors %}
@@ -37,7 +37,7 @@
                         </div>
 
                         <div class="mb-3">
-                            {{ form.email.label(class="form-label") }}
+                            <label for="{{ form.email.id }}" class="form-label">Email</label>
                             <div class="input-group has-validation">
                                 {{ form.email(class="form-control form-control-lg" + (" is-invalid" if form.email.errors else "")) }}
                                 {% if form.email.errors %}
@@ -51,10 +51,10 @@
                         </div>
                         
                         <div class="mb-3">
-                            {{ form.password.label(class="form-label") }}
+                            <label for="{{ form.password.id }}" class="form-label">Kata Sandi</label>
                             <div class="input-group has-validation">
                                 {{ form.password(class="form-control form-control-lg" + (" is-invalid" if form.password.errors else ""), id="password") }}
-                                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="#password">
+                                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="#password" aria-label="Tampilkan / sembunyikan kata sandi">
                                     <i class="bi bi-eye-fill"></i>
                                 </button>
                                 {% if form.password.errors %}
@@ -68,10 +68,10 @@
                         </div>
 
                         <div class="mb-3">
-                            {{ form.confirm_password.label(class="form-label") }}
+                            <label for="{{ form.confirm_password.id }}" class="form-label">Konfirmasi Kata Sandi</label>
                             <div class="input-group has-validation">
                                 {{ form.confirm_password(class="form-control form-control-lg" + (" is-invalid" if form.confirm_password.errors else ""), id="confirm_password") }}
-                                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="#confirm_password">
+                                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="#confirm_password" aria-label="Tampilkan / sembunyikan konfirmasi kata sandi">
                                     <i class="bi bi-eye-fill"></i>
                                 </button>
                                 {% if form.confirm_password.errors %}
@@ -85,15 +85,15 @@
                         </div>
 
                         <div class="d-grid mt-4">
-                            {{ form.submit(class="btn btn-primary btn-lg") }}
+                            <button type="submit" class="btn btn-primary btn-lg">Buat Akun</button>
                         </div>
                     </form>
                     
                     <hr>
                     <div class="text-center">
                         <small class="text-muted">
-                            Already have an account? 
-                            <a href="{{ url_for('auth.login') }}" class="ms-2">Login Here</a>
+                            Sudah punya akun?
+                            <a href="{{ url_for('auth.login') }}" class="ms-2">Masuk di sini</a>
                         </small>
                     </div>
                 </div>

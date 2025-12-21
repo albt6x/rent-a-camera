@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <title>Pesanan Ditolak</title>
+</head>
+
+<body style="margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f6f8">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; background-color:#ffffff; border-radius:8px;">
+          <tr>
+            <td style="padding:24px;">
+
+              <h1 style="margin:0 0 16px 0; font-size:20px; color:#d62828; font-weight:700;">
+                Pesanan Anda Ditolak
+              </h1>
+
+              <p style="margin:0 0 12px 0; font-size:14px; color:#333333;">
+                Halo
+                <strong>
+                  {% if borrower is defined and borrower %}
+                    {{ borrower.username | default(borrower.email | default('Pengguna')) }}
+                  {% else %}
+                    Pengguna
+                  {% endif %}
+                </strong>,
+              </p>
+
+              <p style="margin:0 0 16px 0; font-size:14px; color:#333333;">
+                Kami mohon maaf, namun pesanan Anda dengan ID
+                <strong>
+                  {# LOGIC UPDATE: RK-XXXX jika ada, jika tidak pakai #ID #}
+                  {% if rental is defined %}
+                    {{ rental.public_id if rental.public_id else "#" ~ rental.id }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </strong>
+                tidak dapat disetujui.
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#fff5f5" style="border:1px solid #f0c7c7; border-radius:6px; margin-bottom:20px;">
+                <tr>
+                  <td style="padding:16px; font-size:14px; color:#333333;">
+
+                    <p style="margin:0 0 8px 0;">
+                      <strong>Order ID:</strong>
+                      {# LOGIC UPDATE: Konsisten di sini juga #}
+                      {% if rental is defined %}
+                        {{ rental.public_id if rental.public_id else "#" ~ rental.id }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </p>
+
+                    <p style="margin:0 0 8px 0;">
+                      <strong>Status Pesanan:</strong> Ditolak
+                    </p>
+
+                    <p style="margin:0;">
+                      <strong>Alasan Penolakan:</strong>
+                      {% if reason is defined and reason %}
+                        {{ reason }}
+                      {% else %}
+                        Tidak disertakan.
+                      {% endif %}
+                    </p>
+
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0 0 20px 0; font-size:14px; color:#333333;">
+                Jika Anda merasa ini sebuah kesalahan atau ingin mengajukan ulang pesanan,
+                silakan hubungi admin atau masuk ke dashboard akun Anda.
+              </p>
+
+              {% if dashboard_url is defined and dashboard_url %}
+                <a href="{{ dashboard_url }}"
+                   style="display:inline-block; padding:10px 18px; background-color:#4c6ef5; color:#ffffff; text-decoration:none; border-radius:6px; font-size:14px; font-weight:600;">
+                  Buka Dashboard
+                </a>
+              {% elif url_root is defined and url_root %}
+                <a href="{{ (url_root|string).rstrip('/') }}/account/dashboard"
+                   style="display:inline-block; padding:10px 18px; background-color:#4c6ef5; color:#ffffff; text-decoration:none; border-radius:6px; font-size:14px; font-weight:600;">
+                  Buka Dashboard
+                </a>
+              {% endif %}
+
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:16px; font-size:12px; color:#777777; text-align:center;">
+              {{ mail_footer | default("Rentalkuy · Jl. Contoh No.1 · 0896-XXXX-XXXX") }}
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

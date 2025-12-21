@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="utf-8">
-  <title>Pembayaran Terkonfirmasi</title>
+  <title>Reservasi Telah Selesai</title>
 </head>
 
 <body style="margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, sans-serif;">
@@ -17,7 +17,7 @@
           <tr>
             <td style="padding:20px 28px; background-color:#2b6ef6; color:#ffffff;">
               <h1 style="margin:0; font-size:20px; font-weight:600;">
-                Pembayaran Terkonfirmasi — Rentalkuy
+                Reservasi Telah Selesai — Rentalkuy
               </h1>
             </td>
           </tr>
@@ -45,62 +45,61 @@
               </p>
 
               <p style="margin:0 0 14px 0; color:#6b7280;">
-                Pembayaran untuk reservasi
-                <strong>
-                  {# LOGIC UPDATE: Konsisten RK-XXXX atau #ID #}
-                  {% if rental is defined and rental %}
-                    {{ rental.public_id if rental.public_id else "#" ~ rental.id }}
-                  {% elif public_id is defined and public_id %}
-                    {{ public_id }}
-                  {% elif id is defined and id %}
-                    #{{ id }}
-                  {% else %}
-                    —
-                  {% endif %}
-                </strong>
-                telah diterima. Anda dapat mengambil barang sesuai jadwal.
+                Reservasi Anda telah <strong>selesai</strong> dan barang sudah diterima kembali.
+                Berikut ringkasan pesanan Anda.
               </p>
 
               <table width="100%" cellpadding="0" cellspacing="0"
                      bgcolor="#f8fafc"
                      style="border-radius:6px; margin-bottom:16px;">
                 <tr>
-                  <td style="padding:12px; font-size:13px; color:#374151;">
+                  <td style="padding:14px; font-size:13px; color:#374151;">
 
                     <p style="margin:0 0 6px 0;">
                       <strong>Order ID:</strong>
-                      {# LOGIC UPDATE: Konsisten di sini juga #}
-                      {% if rental is defined and rental %}
+                      {# LOGIC UPDATE: Konsisten RK-XXXX atau #ID #}
+                      {%- if rental is defined and rental -%}
                         {{ rental.public_id if rental.public_id else "#" ~ rental.id }}
-                      {% elif public_id is defined and public_id %}
+                      {%- elif public_id is defined and public_id -%}
                         {{ public_id }}
-                      {% elif id is defined and id %}
+                      {%- elif id is defined and id -%}
                         #{{ id }}
-                      {% else %}
+                      {%- else -%}
                         —
-                      {% endif %}
+                      {%- endif -%}
                     </p>
 
                     <p style="margin:0 0 6px 0;">
-                      <strong>Tanggal Pengambilan:</strong>
-                      {% if rental is defined and rental and rental.pickup_date %}
-                        {{ rental.pickup_date }}
-                      {% elif pickup_date is defined and pickup_date %}
-                        {{ pickup_date }}
-                      {% else %}
-                        —
-                      {% endif %}
+                      <strong>Tanggal Pengembalian:</strong>
+                      {%- if rental is defined and rental -%}
+                        {%- if rental.returned_at is defined and rental.returned_at -%}
+                          {{ rental.returned_at }}
+                        {%- elif rental.completed_at is defined and rental.completed_at -%}
+                          {{ rental.completed_at }}
+                        {%- elif rental.updated_at is defined and rental.updated_at -%}
+                          {{ rental.updated_at }}
+                        {%- elif rental.created_at is defined and rental.created_at -%}
+                          {{ rental.created_at }}
+                        {%- else -%}
+                          —
+                        {%- endif -%}
+                      {%- else -%}
+                        {%- if returned_at is defined and returned_at -%}
+                          {{ returned_at }}
+                        {%- elif completed_at is defined and completed_at -%}
+                          {{ completed_at }}
+                        {%- elif updated_at is defined and updated_at -%}
+                          {{ updated_at }}
+                        {%- elif created_at is defined and created_at -%}
+                          {{ created_at }}
+                        {%- else -%}
+                          —
+                        {%- endif -%}
+                      {%- endif -%}
                     </p>
 
                     <p style="margin:0;">
-                      <strong>Status Pembayaran:</strong>
-                      {% if rental is defined and rental and rental.payment_status %}
-                        {{ rental.payment_status }}
-                      {% elif payment_status is defined %}
-                        {{ payment_status }}
-                      {% else %}
-                        —
-                      {% endif %}
+                      <strong>Status Akhir:</strong> Selesai
                     </p>
 
                   </td>
@@ -187,6 +186,7 @@
 
               <p style="margin:12px 0 0 0; font-size:13px; color:#6b7280;">
                 Jika ada kendala, balas email ini atau hubungi admin.
+                Terima kasih telah menggunakan Rentalkuy!
               </p>
 
             </td>

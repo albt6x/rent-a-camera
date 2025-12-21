@@ -7,7 +7,7 @@
     {% include 'flash_messages.html' %}
 
     <div class="row">
-        <!-- Sidebar Kategori -->
+        
         <div class="col-md-2">
             <h5 class="mb-3">Kategori</h5>
             <div class="list-group">
@@ -25,10 +25,8 @@
             </div>
         </div>
 
-        <!-- Konten Kanan -->
         <div class="col-md-10">
 
-            <!-- Header Katalog -->
             <div class="row mb-3 align-items-center">
                 <div class="col">
                     <h2 class="mb-0">
@@ -40,20 +38,16 @@
                     </h2>
                     <small class="text-muted">
                         Total {{ items.total if items is not none else 0 }} barang ditemukan
+                        {% if request.args.get('q') %}
+                            untuk pencarian "<strong>{{ request.args.get('q') }}</strong>"
+                        {% endif %}
                     </small>
                 </div>
-
-                <div class="col text-end">
-                    <a href="{{ url_for('cart.view_cart') }}" class="btn btn-warning btn-lg shadow-sm">
-                        🛒 Keranjang Anda 
-                        (<span class="badge bg-danger rounded-pill">{{ cart_count }}</span>)
-                    </a>
+                
                 </div>
-            </div>
 
             <hr>
 
-            <!-- Daftar Barang -->
             <div class="row row-cols-1 row-cols-md-3 g-4">
                 {% if items and items.items %}
                     {% for item in items.items %}
@@ -62,12 +56,11 @@
                         <div class="card flip-card shadow-sm h-100">
                             <div class="flip-card-inner">
                                 
-                                <!-- Bagian Depan Card -->
                                 <div class="flip-card-front">
                                     <img src="{{ url_for('static', filename='uploads/items/' + (item.image_filename or 'default_item.jpg')) }}" 
-                                         class="card-img-top" 
-                                         alt="{{ item.name }}" 
-                                         style="height: 200px; object-fit: cover;">
+                                             class="card-img-top" 
+                                             alt="{{ item.name }}" 
+                                             style="height: 200px; object-fit: cover;">
                                     
                                     <div class="card-body d-flex flex-column">
                                         <h5 class="card-title">{{ item.name }}</h5>
@@ -78,44 +71,55 @@
                                             <small class="text-muted">/ 24 Jam</small>
                                         </p>
 
-                                        <!-- Tombol Detail -->
                                         <button class="btn btn-sm detail-spec-btn flip-trigger mb-3 w-100">
                                             Lihat Detail Spesifikasi
                                         </button>
 
-                                        <!-- Tombol Durasi -->
                                         <div class="mt-auto pt-2">
-                                            <form method="POST" 
-                                                  action="{{ url_for('cart.add_to_cart', item_id=item.id) }}" 
-                                                  class="d-flex align-items-center">
-                                                
-                                                <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            
+                                            {# Jika USER BIASA / GUEST: Tampilkan tombol beli #}
+                                            {% if not current_user.is_authenticated or current_user.role != 'admin' %}
+                                                <form method="POST" 
+                                                      action="{{ url_for('cart.add_to_cart', item_id=item.id) }}" 
+                                                      class="d-flex align-items-center">
+                                                    
+                                                    <input type="hidden" name="item_id" value="{{ item.id }}">
 
-                                                <button type="submit"
-                                                        name="duration"
-                                                        value="12"
-                                                        class="btn btn-sm duration-btn me-2"
-                                                        title="Harga 12 Jam">
-                                                    12 Jam
-                                                </button>
+                                                    <button type="submit"
+                                                            name="duration"
+                                                            value="12"
+                                                            class="btn btn-sm duration-btn me-2"
+                                                            title="Harga 12 Jam">
+                                                        12 Jam
+                                                    </button>
 
-                                                <button type="submit"
-                                                        name="duration"
-                                                        value="24"
-                                                        class="btn btn-sm duration-btn me-2"
-                                                        title="Harga 24 Jam">
-                                                    24 Jam
-                                                </button>
+                                                    <button type="submit"
+                                                            name="duration"
+                                                            value="24"
+                                                            class="btn btn-sm duration-btn me-2"
+                                                            title="Harga 24 Jam">
+                                                        24 Jam
+                                                    </button>
 
-                                                <small class="text-success ms-auto">
-                                                    Stok: {{ item.stock }}
-                                                </small>
-                                            </form>
+                                                    <small class="text-success ms-auto">
+                                                        Stok: {{ item.stock }}
+                                                    </small>
+                                                </form>
+                                            
+                                            {# Jika ADMIN: Tampilkan Mode Preview #}
+                                            {% else %}
+                                                <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded">
+                                                    <span class="badge bg-secondary">Mode Preview</span>
+                                                    <small class="text-success fw-bold">
+                                                        Stok: {{ item.stock }}
+                                                    </small>
+                                                </div>
+                                            {% endif %}
+
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Bagian Belakang Card -->
                                 <div class="flip-card-back">
                                     <div class="card-body d-flex flex-column">
                                         <h5 class="card-title">{{ item.name }}</h5>
@@ -139,7 +143,6 @@
                         {% set q = request.args.get('q', '') %}
 
                         {% if q %}
-                            <!-- Kosong karena pencarian -->
                             <div class="alert alert-info text-center">
                                 Tidak ada hasil untuk <strong>{{ q }}</strong>.
                                 Coba kata kunci lain atau 
@@ -147,13 +150,11 @@
                             </div>
 
                         {% elif current_category %}
-                            <!-- Kosong karena kategori -->
                             <div class="alert alert-info text-center">
                                 Belum ada barang di kategori <strong>{{ current_category.name }}</strong>.
                             </div>
 
                         {% else %}
-                            <!-- Kosong karena database kosong -->
                             <div class="alert alert-warning text-center">
                                 Belum ada barang tersedia saat ini.  
                                 Silakan cek kembali nanti atau hubungi admin.
@@ -164,7 +165,6 @@
                 {% endif %}
             </div>
 
-            <!-- PAGINATION -->
             {% if items and items.pages > 1 %}
             <nav aria-label="Pagination" class="mt-4">
                 <ul class="pagination justify-content-center">
@@ -177,7 +177,7 @@
                         <li class="page-item disabled"><span class="page-link">Previous</span></li>
                     {% endif %}
 
-                    {# Page numbers: show current -2 .. current +2 (bounded) #}
+                    {# Page numbers #}
                     {% set start = items.page - 2 if items.page - 2 > 0 else 1 %}
                     {% set end = items.page + 2 if items.page + 2 <= items.pages else items.pages %}
                     {% for p in range(start, end + 1) %}

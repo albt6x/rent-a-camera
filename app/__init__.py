@@ -1,8 +1,18 @@
 # app/__init__.py
+"""
+Application factory and core helpers for Rentalkuy.
+FULL-REPLACE: improved send_email that respects PRINT_EMAILS_TO_CONSOLE,
+robust fallback, non-blocking behaviour, and better logging for troubleshooting.
+"""
 import os
 import threading
 from base64 import b64encode
 from io import BytesIO
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import smtplib
+import logging
+import importlib
 
 from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
@@ -50,6 +60,8 @@ login_manager.login_view = "auth.login"
 login_manager.login_message = "Silakan login untuk mengakses halaman ini."
 login_manager.login_message_category = "info"
 
+_logger = logging.getLogger(__name__)
+
 
 # ==========================================================
 # 2. Factory Function (FULL REPLACE)
@@ -60,12 +72,18 @@ def create_app(config_string="config.Config"):
     - Loads config from config_string (default config.Config)
     - Initializes extensions (db, migrate, login_manager, bcrypt, mail)
     - Optionally sets up Talisman when configured and installed
-    - Registers existing blueprints (main, auth, catalog, cart, booking, admin, account, staff)
+    - Registers existing blueprints (auto-detect bp variables)
     - Attaches helpers: send_email, generate_totp_secret, get_totp_uri, qr_image_base64
     """
 
     app = Flask(__name__, static_folder="static", template_folder="templates")
     app.config.from_object(config_string)
+
+    # quick debug visibility for important flags at startup
+    try:
+        app.logger.debug("Config PRINT_EMAILS_TO_CONSOLE=%s", app.config.get("PRINT_EMAILS_TO_CONSOLE"))
+    except Exception:
+        pass
 
     # Ensure upload folders exist (best-effort)
     upload_base = app.config.get("UPLOAD_FOLDER_BASE")
@@ -115,64 +133,54 @@ def create_app(config_string="config.Config"):
             pass
 
     # ==========================================================
-    # 6. Register Blueprint (keep same names as project)
+    # 6. Register Blueprints (auto-detect common bp names)
     # ==========================================================
-    # we import and register blueprints by the names used in your original file
-    try:
-        from app.main.routes import main_bp
-        app.register_blueprint(main_bp)
-    except Exception:
-        pass
+    # mapping of module -> suggested url_prefix (only used if prefix not None)
+    common_blueprints = {
+        "app.main.routes": None,        # register at root
+        "app.auth.routes": "/auth",
+        "app.catalog.routes": "/catalog",
+        "app.cart.routes": "/cart",
+        "app.booking.routes": "/booking",
+        "app.admin.routes": "/admin",
+        "app.account.routes": "/account",
+        "app.staff.routes": "/staff",
+        "app.twofa.routes": None,       # optional
+    }
 
-    try:
-        from app.auth.routes import auth_bp
-        app.register_blueprint(auth_bp, url_prefix="/auth")
-    except Exception:
-        pass
+    def _find_blueprint_from_module(module):
+        """Try to detect a Blueprint object in a module by common attribute names."""
+        for candidate in ("bp", "auth_bp", "main_bp", "catalog_bp", "cart_bp", "booking_bp", "admin_bp", "account_bp", "staff_bp", "twofa_bp"):
+            bp = getattr(module, candidate, None)
+            if bp is not None:
+                return bp
+        # fallback: try to find any attribute that looks like a Blueprint instance by type name
+        for name in dir(module):
+            if name.startswith("_"):
+                continue
+            obj = getattr(module, name)
+            # avoid importing large objects; use duck-typing: check for 'register' attribute and 'name'
+            if hasattr(obj, "name") and hasattr(obj, "register"):
+                return obj
+        return None
 
-    try:
-        from app.catalog.routes import catalog_bp
-        app.register_blueprint(catalog_bp, url_prefix="/catalog")
-    except Exception:
-        pass
-
-    try:
-        from app.cart.routes import cart_bp
-        app.register_blueprint(cart_bp, url_prefix="/cart")
-    except Exception:
-        pass
-
-    try:
-        from app.booking.routes import booking_bp
-        app.register_blueprint(booking_bp, url_prefix="/booking")
-    except Exception:
-        pass
-
-    try:
-        from app.admin.routes import admin_bp
-        app.register_blueprint(admin_bp, url_prefix="/admin")
-    except Exception:
-        pass
-
-    try:
-        from app.account.routes import account_bp
-        app.register_blueprint(account_bp, url_prefix="/account")
-    except Exception:
-        pass
-
-    try:
-        from app.staff.routes import staff_bp
-        app.register_blueprint(staff_bp, url_prefix="/staff")
-    except Exception:
-        pass
-
-    # register optional twofa blueprint if exists (we will create this file separately)
-    try:
-        from app.twofa.routes import twofa_bp
-        app.register_blueprint(twofa_bp)
-    except Exception:
-        # blueprint doesn't exist yet; that's fine
-        pass
+    for module_path, url_prefix in common_blueprints.items():
+        try:
+            mod = importlib.import_module(module_path)
+            bp = _find_blueprint_from_module(mod)
+            if bp:
+                # if prefix explicitly provided, use it; otherwise register without prefix
+                if url_prefix:
+                    app.register_blueprint(bp, url_prefix=url_prefix)
+                else:
+                    app.register_blueprint(bp)
+            else:
+                _logger.debug("No blueprint found in %s", module_path)
+        except ModuleNotFoundError:
+            # module not present — that's acceptable for optional modules
+            _logger.debug("Module not found (skipping): %s", module_path)
+        except Exception:
+            _logger.exception("Error while importing/registering blueprint from %s", module_path)
 
     # ==========================================================
     # 7. Context Processor (example: inject cart count)
@@ -212,34 +220,110 @@ def create_app(config_string="config.Config"):
     # ==========================================================
     # 10. EMAIL helper (non-blocking) - attach to app
     # ==========================================================
-    def _send_async(msg):
-        # run mail.send in app context
-        with app.app_context():
-            if _HAS_FLASK_MAIL and mail:
-                mail.send(msg)
-            else:
-                # If Flask-Mail not installed, fallback to logging (no crash)
-                app.logger.warning("Mail not configured or Flask-Mail not installed. Subject: %s", getattr(msg, "subject", None))
-
-    def send_email(subject, recipients, body, html=None, sender=None):
-        """
-        Send email non-blocking.
-        Usage:
-            send_email("Hi", ["to@example.com"], "plain text", html="<b>HTML</b>")
-        """
-        if not _HAS_FLASK_MAIL or not mail:
-            app.logger.warning("Attempt to send email but Flask-Mail not available.")
+    def _send_via_flask_mail(msg):
+        """Send using Flask-Mail (expects Message instance)."""
+        try:
+            if not _HAS_FLASK_MAIL or mail is None:
+                app.logger.warning("Flask-Mail not available in _send_via_flask_mail.")
+                return False
+            mail.send(msg)
+            return True
+        except Exception:
+            app.logger.exception("Exception while sending mail via Flask-Mail")
             return False
 
-        msg = Message(subject=subject, recipients=recipients)
-        if sender:
-            msg.sender = sender
-        msg.body = body
-        if html:
-            msg.html = html
-        t = threading.Thread(target=_send_async, args=(msg,))
-        t.start()
-        return True
+    def _send_via_smtp(subject, recipients, body, html=None, sender=None):
+        """Fallback sending using smtplib; sends multipart/alternative."""
+        try:
+            sender = sender or app.config.get("MAIL_DEFAULT_SENDER")
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = sender
+            msg["To"] = ", ".join(recipients if isinstance(recipients, (list, tuple)) else [recipients])
+
+            part1 = MIMEText(body or "", "plain", "utf-8")
+            msg.attach(part1)
+            if html:
+                part2 = MIMEText(html, "html", "utf-8")
+                msg.attach(part2)
+
+            server = smtplib.SMTP(app.config.get("MAIL_SERVER"), int(app.config.get("MAIL_PORT", 25)))
+            if app.config.get("MAIL_USE_TLS"):
+                server.starttls()
+            username = app.config.get("MAIL_USERNAME")
+            pwd = app.config.get("MAIL_PASSWORD")
+            if username:
+                server.login(username, pwd)
+            server.sendmail(sender, recipients if isinstance(recipients, (list, tuple)) else [recipients], msg.as_string())
+            server.quit()
+            return True
+        except Exception:
+            app.logger.exception("Exception while sending mail via smtplib")
+            return False
+
+    def _send_async_wrapper(send_callable, *args, **kwargs):
+        """Run a send callable in a freshly created app context (background thread)."""
+        try:
+            # create a fresh app context inside the thread so render_template etc work
+            with app.app_context():
+                return send_callable(*args, **kwargs)
+        except Exception:
+            app.logger.exception("Error in background send thread")
+            return False
+
+    def send_email(subject, recipients, body, html=None, sender=None, force_send=False):
+        """
+        Send email non-blocking.
+
+        Behaviour summary:
+        - If PRINT_EMAILS_TO_CONSOLE is truthy and force_send is False -> print/log email and return True (no network).
+        - Otherwise, try Flask-Mail (if available), falling back to direct SMTP.
+        - All network sending is performed in a background thread.
+        - Returns True if scheduled (or printed), False otherwise.
+        """
+        if isinstance(recipients, str):
+            recipients = [recipients]
+
+        # If configured to print emails instead of sending, do that and skip network
+        try:
+            if app.config.get("PRINT_EMAILS_TO_CONSOLE", False) and not force_send:
+                # Print a compact but informative representation to log
+                try:
+                    app.logger.info("[EMAIL-PRINT] subject=%s to=%s", subject, recipients)
+                    app.logger.info("[EMAIL-PRINT] body (trunc): %s", (body or "").strip()[:1000])
+                    if html:
+                        app.logger.info("[EMAIL-PRINT] html (trunc): %s", (html or "")[:2000])
+                except Exception:
+                    # fallback to stdout if logger misbehaves
+                    print("[EMAIL-PRINT] subject=", subject, "to=", recipients)
+                    print((body or "")[:1000])
+                return True
+        except Exception:
+            # don't crash because of logging error
+            app.logger.exception("Error while checking PRINT_EMAILS_TO_CONSOLE flag")
+
+        # Try Flask-Mail first (non-blocking)
+        if _HAS_FLASK_MAIL and mail:
+            try:
+                msg = Message(subject=subject, recipients=recipients, body=body)
+                if sender:
+                    msg.sender = sender
+                if html:
+                    msg.html = html
+                t = threading.Thread(target=_send_async_wrapper, args=(_send_via_flask_mail, msg), daemon=True)
+                t.start()
+                return True
+            except Exception:
+                app.logger.exception("Failed to prepare/send email via Flask-Mail, falling back to smtplib")
+
+        # Fallback: use SMTP in background thread
+        try:
+            t = threading.Thread(target=_send_async_wrapper, args=(_send_via_smtp, subject, recipients, body, html, sender), daemon=True)
+            t.start()
+            return True
+        except Exception:
+            app.logger.exception("Failed to schedule fallback SMTP send")
+            return False
 
     # attach to app for easy use: app.send_email(...)
     app.send_email = send_email

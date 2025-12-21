@@ -1,82 +1,125 @@
-{% extends "layouts/base.html" %}
+{% extends "base_auth.html" %}
+{% block title %}Aktivasi 2FA{% endblock %}
+
 {% block content %}
 
-<div class="container mt-5" style="max-width: 600px;">
-  <h2 class="mb-4 text-center">Aktivasi Two-Factor Authentication (2FA)</h2>
+<style>
+.masked-box {
+  font-family: monospace;
+  background: #f1f3f5;
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  display: inline-block;
+}
 
-  <div class="card shadow">
-    <div class="card-body">
+.masked-box:hover {
+  background: #e9ecef;
+}
 
-      <p>
-        Scan QR code di bawah menggunakan aplikasi seperti
-        <strong>Google Authenticator</strong>, <strong>Authy</strong>, atau <strong>Microsoft Authenticator</strong>.
-      </p>
+.copy-hint {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+</style>
 
-      {% if qr_base64 %}
-      <div class="text-center my-3">
-        <img src="{{ qr_base64 }}" alt="QR Code 2FA" class="img-fluid" style="max-width: 260px;">
-      </div>
-      {% else %}
-      <div class="alert alert-warning text-center">QR code tidak tersedia. Gunakan provisioning URI atau coba generate ulang.</div>
-      {% endif %}
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
 
-      <hr>
+    <div class="card shadow-lg border-0">
+      <div class="card-body p-4">
 
-      {% if secret %}
-      <p><strong>Secret Key (Backup)</strong></p>
-      <div class="alert alert-secondary" style="word-break:break-all;">
-        {{ secret }}
-      </div>
-      <p class="small text-muted">
-        Simpan secret ini di tempat aman (cadangan). Jangan bagikan ke orang lain.
-      </p>
-      <hr>
-      {% endif %}
+        <h3 class="text-center mb-2 fw-semibold">
+          Aktivasi Two-Factor Authentication
+        </h3>
 
-      {% if provisioning_uri %}
-      <p><strong>Provisioning URI (opsional)</strong></p>
-      <div class="alert alert-light" style="font-size: 0.85rem; word-break:break-all;">
-        {{ provisioning_uri }}
-      </div>
-      <hr>
-      {% endif %}
+        <p class="text-center text-muted mb-4">
+          Scan QR code menggunakan
+          <strong>Google Authenticator</strong>,
+          <strong>Authy</strong>, atau
+          <strong>Microsoft Authenticator</strong>.
+        </p>
 
-      <h5 class="mt-4">Konfirmasi Aktivasi 2FA</h5>
-      <p>
-        Setelah Anda scan QR di aplikasi autentikator, masukkan kode 6 digit yang muncul.
-      </p>
-
-      <form method="POST" action="{{ url_for('twofa.twofa_confirm', user_id=user.id) }}">
-        {{ csrf_token() }}
-
-        {% if secret %}
-        <input type="hidden" name="secret" value="{{ secret }}">
+        {% if qr_base64 %}
+        <div class="text-center mb-4">
+          <img
+            src="{{ qr_base64 }}"
+            alt="QR Code 2FA"
+            class="img-fluid"
+            style="max-width:260px;"
+          >
+        </div>
         {% endif %}
 
-        <div class="mb-3">
-          <label for="code" class="form-label">Kode 6 Digit</label>
+        <hr>
+
+        <!-- SECRET KEY -->
+        {% if secret %}
+        <p class="fw-semibold mb-1">Secret Key (Cadangan)</p>
+
+        <div
+          class="masked-box"
+          data-copy="{{ secret }}"
+          onclick="copySecret(this)"
+          title="Klik untuk menyalin"
+        >
+          ********{{ secret[-4:] }}
+        </div>
+
+        <div class="copy-hint mt-1 mb-3">
+          Simpan secret ini di tempat aman. Jangan dibagikan.
+        </div>
+
+        <hr>
+        {% endif %}
+
+        <!-- CONFIRM -->
+        <h5 class="mt-3">Konfirmasi Aktivasi</h5>
+        <p class="text-muted">
+          Masukkan kode 6 digit dari aplikasi autentikator.
+        </p>
+
+        <form method="POST" action="{{ url_for('twofa.twofa_confirm', user_id=user.id) }}">
+          <input type="hidden" name="secret" value="{{ secret }}">
+
           <input
             type="tel"
             inputmode="numeric"
             pattern="\d{6}"
-            class="form-control"
-            id="code"
+            maxlength="6"
+            class="form-control text-center mb-3"
             name="code"
             placeholder="123456"
             required
+            autofocus
             autocomplete="one-time-code"
           >
-        </div>
 
-        <button type="submit" class="btn btn-primary w-100">Aktifkan 2FA</button>
-      </form>
+          <button class="btn btn-primary w-100">
+            Aktifkan 2FA
+          </button>
+        </form>
 
-      <div class="mt-3 text-center">
-        <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn btn-link small">Kembali ke profil</a>
       </div>
-
     </div>
+
+    <!-- ===== BACK TO LOGIN (INI YANG KAMU MAU) ===== -->
+    <div class="text-center mt-4">
+      <a href="{{ url_for('auth.login') }}" class="text-decoration-none">
+        ← Kembali ke halaman login
+      </a>
+    </div>
+
   </div>
 </div>
+
+<script>
+function copySecret(el) {
+  navigator.clipboard.writeText(el.dataset.copy).then(() => {
+    el.title = "Disalin!";
+  });
+}
+</script>
 
 {% endblock %}

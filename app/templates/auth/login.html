@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Camera Rental{% endblock %}
+{% block title %}Masuk - Rental Kamera{% endblock %}
 
 {% block content %}
 <main class="container" style="padding-top: 76px;">
@@ -17,13 +17,13 @@
 
             <div class="card shadow-sm">
                 <div class="card-body p-4 p-md-5">
-                    <h2 class="text-center mb-4">Login to Your Account</h2>
+                    <h2 class="text-center mb-4">Masuk ke Akun Anda</h2>
                     
                     <form method="POST" action="">
                         {{ form.hidden_tag() }}
 
                         <div class="mb-3">
-                            {{ form.email.label(class="form-label") }}
+                            <label for="{{ form.email.id }}" class="form-label">Email</label>
                             <div class="input-group has-validation">
                                 {{ form.email(class="form-control form-control-lg" + (" is-invalid" if form.email.errors else "")) }}
                                 {% if form.email.errors %}
@@ -37,10 +37,10 @@
                         </div>
 
                         <div class="mb-3">
-                            {{ form.password.label(class="form-label") }}
+                            <label for="{{ form.password.id }}" class="form-label">Kata Sandi</label>
                             <div class="input-group has-validation">
                                 {{ form.password(class="form-control form-control-lg" + (" is-invalid" if form.password.errors else ""), id="password") }}
-                                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="#password">
+                                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="#password" aria-label="Tampilkan / sembunyikan kata sandi">
                                     <i class="bi bi-eye-fill"></i>
                                 </button>
                                 {% if form.password.errors %}
@@ -55,19 +55,19 @@
                         
                         <div class="mb-3 form-check">
                             {{ form.remember(class="form-check-input") }}
-                            {{ form.remember.label(class="form-check-label") }}
+                            <label class="form-check-label" for="{{ form.remember.id }}">Ingat Saya</label>
                         </div>
 
                         <div class="d-grid">
-                            {{ form.submit(class="btn btn-primary btn-lg") }}
+                            <button type="submit" class="btn btn-primary btn-lg">Masuk</button>
                         </div>
                     </form>
                     
                     <hr>
                     <div class="text-center">
                         <small class="text-muted">
-                            Don't have an account?
-                            <a href="{{ url_for('auth.register') }}" class="ms-2">Register Here</a>
+                            Belum punya akun?
+                            <a href="{{ url_for('auth.register') }}" class="ms-2">Daftar di sini</a>
                         </small>
                     </div>
 
