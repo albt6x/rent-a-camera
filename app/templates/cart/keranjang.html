@@ -16,21 +16,18 @@
     </div>
 
     <div class="row g-4">
-        <!-- KOLOM KIRI: DAFTAR ITEM -->
         <div class="col-lg-8">
             {% if items_in_cart %}
                 {% for cart_item in items_in_cart %}
                     {% set item = cart_item.item %}
                     <div class="card shadow-sm mb-3 border-0">
                         <div class="card-body d-flex flex-column flex-md-row align-items-start">
-                            <!-- Gambar kecil -->
                             <div class="me-md-3 mb-3 mb-md-0">
                                 <img src="{{ url_for('static', filename='uploads/items/' + item.image_filename) }}"
                                      alt="{{ item.name }}"
                                      style="width: 120px; height: 80px; object-fit: cover; border-radius: 0.5rem;">
                             </div>
 
-                            <!-- Detail item -->
                             <div class="flex-grow-1">
                                 <div class="d-flex justify-content-between align-items-start mb-1">
                                     <div>
@@ -40,7 +37,6 @@
                                         </span>
                                     </div>
 
-                                    <!-- Tombol hapus -->
                                     <form method="GET"
                                           action="{{ url_for('cart.remove_from_cart', key=cart_item.key) }}">
                                         <button type="submit"
@@ -51,7 +47,6 @@
                                     </form>
                                 </div>
 
-                                <!-- Info durasi & harga -->
                                 <div class="d-flex flex-wrap align-items-center small text-muted mb-2">
                                     {% if cart_item.duration_hours == 24 %}
                                         <span class="me-3">
@@ -78,7 +73,6 @@
                                     </span>
                                 </div>
 
-                                <!-- Total untuk item ini -->
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="text-muted small">
                                         Total untuk item ini
@@ -106,7 +100,6 @@
             {% endif %}
         </div>
 
-        <!-- KOLOM KANAN: RINGKASAN PESANAN -->
         <div class="col-lg-4">
             <div class="card shadow-sm border-0">
                 <div class="card-body">
@@ -121,7 +114,6 @@
 
                     <hr>
 
-                    <!-- FORM CHECKOUT: POST KE URL YANG SAMA -->
                     <form method="POST" action="">
                         {{ form.hidden_tag() }}
 
@@ -149,6 +141,9 @@
                     <hr class="mt-4">
 
                     <div class="small text-muted">
+                        <p class="mb-2 text-primary fw-bold">
+                            <i class="bi bi-whatsapp"></i> Harap lengkapi nomor WhatsApp di halaman profil agar admin dapat menghubungi Anda.
+                        </p>
                         <p class="mb-1">
                             📍 Pengambilan di toko: <strong>RentalKuy</strong>
                         </p>

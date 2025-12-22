@@ -1,14 +1,16 @@
-# app/utils.py  (FULL REPLACE)
 import os
 import uuid
 import secrets
+import logging # Tambahkan ini
 from PIL import Image, UnidentifiedImageError
 from werkzeug.utils import secure_filename
 from flask import current_app
 
+# Set up logger sederhana
+logger = logging.getLogger(__name__)
+
 # Allowed extensions untuk upload gambar
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif"}
-
 
 def allowed_file(filename: str) -> bool:
     if not filename or "." not in filename:
@@ -16,20 +18,17 @@ def allowed_file(filename: str) -> bool:
     ext = filename.rsplit(".", 1)[1].lower()
     return ext in ALLOWED_EXTENSIONS
 
-
 def generate_basename() -> str:
     """Buat nama file random (tanpa ekstensi)."""
     return secrets.token_hex(12)
 
-
 def _ensure_folder(path: str):
-    """Buat folder kalau belum ada (silent)."""
+    """Buat folder kalau belum ada dengan logging jika gagal."""
     try:
         os.makedirs(path, exist_ok=True)
-    except Exception:
-        # jika gagal membuat folder (permission etc) biarkan raise nanti saat save
-        pass
-
+    except Exception as e:
+        # Ganti 'pass' dengan log agar kita tahu jika OS menolak membuat folder
+        current_app.logger.error(f"Gagal membuat folder di {path}: {str(e)}")
 
 def _resolve_upload_folder(key_or_path: str):
     """
@@ -39,22 +38,18 @@ def _resolve_upload_folder(key_or_path: str):
     if not key_or_path:
         return None
 
-    # jika terlihat seperti path langsung
     if ("/" in key_or_path) or ("\\" in key_or_path) or (":" in key_or_path and os.name == "nt"):
         return os.path.abspath(key_or_path)
 
     cfg = current_app.config
 
-    # direct key
     if key_or_path in cfg and cfg.get(key_or_path):
         return os.path.abspath(cfg.get(key_or_path))
 
-    # try uppercase
     k_upper = key_or_path.upper()
     if k_upper in cfg and cfg.get(k_upper):
         return os.path.abspath(cfg.get(k_upper))
 
-    # common aliases mapping (expand jika perlu)
     aliases = {
         'PROFILE_UPLOAD_FOLDER': ['PROFILE_UPLOAD_FOLDER', 'UPLOAD_FOLDER_PROFILE_PICS', 'UPLOAD_FOLDER_PROFILE', 'UPLOAD_PROFILE_FOLDER'],
         'ITEMS_UPLOAD_FOLDER': ['ITEMS_UPLOAD_FOLDER', 'UPLOAD_FOLDER_ITEMS', 'UPLOAD_ITEMS_FOLDER'],
@@ -67,87 +62,72 @@ def _resolve_upload_folder(key_or_path: str):
                 if a in cfg and cfg.get(a):
                     return os.path.abspath(cfg.get(a))
 
-    # try some generic keys if present
     for fallback in ('UPLOAD_FOLDER_PROFILE_PICS', 'UPLOAD_FOLDER_ITEMS', 'UPLOAD_FOLDER_PAYMENT_PROOFS', 'UPLOAD_FOLDER_BASE'):
         if fallback in cfg and cfg.get(fallback):
             return os.path.abspath(cfg.get(fallback))
 
     return None
 
-
 def save_picture(file_storage, folder_key: str, output_size=(800, 800)):
     """
-    Save uploaded picture.
-    - file_storage: werkzeug FileStorage (e.g., form.picture.data)
-    - folder_key: config key name (e.g. 'PROFILE_UPLOAD_FOLDER' or 'UPLOAD_FOLDER_PROFILE_PICS')
-                  or a direct path
-    - output_size: (width, height) maximum thumbnail size; if None, do not resize
-    Returns: saved filename (with extension)
-    Raises ValueError on validation/config errors.
+    Save uploaded picture dengan error handling yang informatif.
     """
-
-    # basic validation
     filename = getattr(file_storage, "filename", None)
     if not filename or not allowed_file(filename):
         raise ValueError("File bukan gambar yang diperbolehkan.")
 
-    # check size best-effort (WSGI MAX_CONTENT_LENGTH preferred)
-    max_bytes = current_app.config.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024)  # default 5MB
+    max_bytes = current_app.config.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024) 
     try:
-        # try to measure stream size if possible
         file_storage.stream.seek(0, os.SEEK_END)
         size = file_storage.stream.tell()
         file_storage.stream.seek(0)
         if size > max_bytes:
-            raise ValueError("File terlalu besar.")
-    except Exception:
-        pass
+            raise ValueError(f"File terlalu besar (Maksimal {max_bytes//(1024*1024)}MB).")
+    except Exception as e:
+        # Jika gagal cek ukuran, log saja tapi biarkan lanjut
+        current_app.logger.warning(f"Gagal menghitung ukuran file: {str(e)}")
 
-    # resolve upload folder (accept key or direct path)
     upload_folder = _resolve_upload_folder(folder_key)
     if not upload_folder:
         raise ValueError("Upload folder belum dikonfigurasi di app.config.")
 
-    # ensure exist
     _ensure_folder(upload_folder)
 
-    # safe filename generation: we will standardize saved images as .jpg
     basename = generate_basename()
     saved_filename = f"{basename}.jpg"
     save_path = os.path.join(upload_folder, saved_filename)
 
-    # verify image using PIL
     try:
         img = Image.open(file_storage.stream)
-        img.verify()  # will raise UnidentifiedImageError if not image
+        img.verify()
     except UnidentifiedImageError:
         raise ValueError("File upload bukan gambar yang valid.")
-    except Exception:
+    except Exception as e:
+        current_app.logger.error(f"Gagal verifikasi gambar: {str(e)}")
         raise ValueError("Gagal memproses gambar upload.")
 
-    # reopen and convert (verify() may close/affect stream)
     file_storage.stream.seek(0)
     try:
         img = Image.open(file_storage.stream).convert("RGB")
-    except Exception:
+    except Exception as e:
+        current_app.logger.error(f"Gagal membuka gambar untuk konversi: {str(e)}")
         raise ValueError("Gagal membuka gambar untuk disimpan.")
 
-    # resize if requested
     if output_size:
         try:
             img.thumbnail(output_size)
-        except Exception:
-            # jika resize gagal, tetap lanjut untuk simpan
-            pass
+        except Exception as e:
+            # Jika resize gagal, beri peringatan di log tapi tetap simpan
+            current_app.logger.warning(f"Gagal melakukan thumbnail resize: {str(e)}")
 
-    # save as JPEG (consistent)
     try:
         img.save(save_path, format="JPEG", quality=85, optimize=True)
-    except Exception:
-        # fallback: try plain save without optimizations
+    except Exception as e:
+        current_app.logger.warning(f"Gagal menyimpan dengan optimasi, mencoba simpan biasa: {str(e)}")
         try:
             img.save(save_path, format="JPEG")
-        except Exception as e:
-            raise ValueError("Gagal menyimpan file gambar.") from e
+        except Exception as err:
+            current_app.logger.error(f"FATAL: Gagal menyimpan gambar di {save_path}: {str(err)}")
+            raise ValueError("Gagal menyimpan file gambar ke server.") from err
 
     return saved_filename

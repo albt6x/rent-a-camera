@@ -1,4 +1,4 @@
-# app/models.py
+# app/models.py (FULL REPLACE - SUDAH ADA KOLOM PHONE)
 import secrets
 from app import db
 from flask_login import UserMixin
@@ -14,6 +14,11 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    
+    # --- KOLOM BARU: NOMOR HP (Untuk WhatsApp) ---
+    phone = db.Column(db.String(20), nullable=True)
+    # ---------------------------------------------
+
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.Enum('penyewa', 'staff', 'admin'), nullable=False, default='penyewa')
     image_file = db.Column(db.String(100), nullable=False, default='default.jpg')
@@ -80,8 +85,7 @@ class Rental(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
 
-    # PUBLIC ID untuk tampilan/email (unik, tidak menggantikan PK internal)
-    # Format default: RK- + 8 hex uppercase (contoh: RK-A1B2C3D4)
+    # PUBLIC ID untuk tampilan/email
     public_id = db.Column(db.String(32), unique=True, nullable=True, default=lambda: "RK-" + secrets.token_hex(4).upper())
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

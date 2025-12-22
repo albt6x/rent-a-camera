@@ -1,4 +1,4 @@
-# app/forms.py  (FULL REPLACE)
+# app/forms.py (FULL REPLACE - DENGAN FIELD PHONE)
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import (
@@ -32,16 +32,12 @@ import os
 def FileSize(max_size_bytes=None):
     """
     Factory for a WTForms validator that ensures uploaded file is <= max_size_bytes.
-    - If max_size_bytes is None, read current_app.config['MAX_UPLOAD_IMAGE_BYTES']
-      (fallback to 5MB) at validation time (so no current_app access at import).
-    - Best-effort measurement: seeks stream to determine size if possible.
     """
     def _file_size(form, field):
         f = getattr(field, "data", None)
         if not f:
-            return  # nothing uploaded
+            return
 
-        # determine limit at runtime (app context must exist at validation time)
         try:
             if max_size_bytes is None:
                 limit = int(current_app.config.get("MAX_UPLOAD_IMAGE_BYTES", 5 * 1024 * 1024))
@@ -50,7 +46,6 @@ def FileSize(max_size_bytes=None):
         except Exception:
             limit = 5 * 1024 * 1024
 
-        # attempt to measure stream size (best-effort)
         try:
             size = None
             stream = getattr(f, "stream", None)
@@ -60,21 +55,17 @@ def FileSize(max_size_bytes=None):
                 size = stream.tell()
                 stream.seek(cur)
             else:
-                # fallback to content_length metadata if present
                 size = getattr(f, "content_length", None)
 
-            # if we couldn't determine size, don't raise here (WSGI MAX_CONTENT_LENGTH will protect)
             if size is None:
                 return
 
             if size > limit:
-                # human-friendly message in MB
                 mb = limit / (1024 * 1024)
                 raise ValidationError(f"File terlalu besar. Maksimum {mb:.1f} MB.")
         except ValidationError:
             raise
         except Exception:
-            # if measuring fails, don't block (server MAX_CONTENT_LENGTH should protect)
             return
 
     return _file_size
@@ -95,6 +86,18 @@ class RegistrationForm(FlaskForm):
         "Email",
         validators=[DataRequired(message="Email is required."), Email(message="Please enter a valid email address.")],
     )
+    
+    # --- TAMBAHAN FIELD PHONE ---
+    phone = StringField(
+        "WhatsApp Number (62...)",
+        validators=[
+            DataRequired(message="WhatsApp number is required."),
+            Length(min=10, max=15, message="Nomor HP harus antara 10-15 digit."),
+            Regexp(r'^[0-9]+$', message="Hanya boleh angka.")
+        ],
+    )
+    # ----------------------------
+
     password = PasswordField(
         "Password",
         validators=[
@@ -148,18 +151,28 @@ class UpdateAccountForm(FlaskForm):
         "Email",
         validators=[DataRequired(message="Email is required."), Email(message="Please enter a valid email address.")],
     )
-    # Allow common image types; size limit default to config MAX_UPLOAD_IMAGE_BYTES (5MB fallback)
+
+    # --- TAMBAHAN FIELD PHONE ---
+    phone = StringField(
+        "WhatsApp Number (62...)",
+        validators=[
+            DataRequired(message="WhatsApp number is required."),
+            Length(min=10, max=15, message="Nomor HP harus antara 10-15 digit."),
+            Regexp(r'^[0-9]+$', message="Hanya boleh angka.")
+        ],
+    )
+    # ----------------------------
+
     picture = FileField(
         "Change Profile Picture",
         validators=[
             FileAllowed(["jpg", "jpeg", "png", "webp", "gif"], "Hanya file gambar (jpg/png/webp/gif) yang diperbolehkan."),
-            FileSize(),  # no literal here — reads config at validation time
+            FileSize(),
         ],
     )
     submit = SubmitField("Update Account")
 
     def validate_username(self, username):
-        # only check if username changed
         if username.data != current_user.username:
             user = User.query.filter_by(username=username.data).first()
             if user:
@@ -192,7 +205,6 @@ class CategoryForm(FlaskForm):
 # 5. ITEM / PRODUCT FORM
 # ------------------------------------------------------------------
 class ItemForm(FlaskForm):
-    # choices expected to be filled by view: form.category.choices = [(id, name), ...]
     category = SelectField("Category", choices=[], coerce=int, validators=[DataRequired(message="Category is required.")])
     name = StringField("Item Name", validators=[DataRequired(message="Item name is required."), Length(max=100)])
     description = TextAreaField("Specifications / Description", validators=[DataRequired(message="Description is required.")])
@@ -242,11 +254,16 @@ class AddStaffForm(FlaskForm):
 
 
 # ------------------------------------------------------------------
-# 8. EDIT USER FORM (used by admin)
+# 8. EDIT USER FORM (Admin)
 # ------------------------------------------------------------------
 class EditUserForm(FlaskForm):
     username = StringField("Username", validators=[DataRequired(), Length(min=2, max=20)])
     email = StringField("Email", validators=[DataRequired(), Email()])
+    
+    # --- TAMBAHAN FIELD PHONE (Opsional buat Admin ngedit user) ---
+    phone = StringField("WhatsApp", validators=[Length(min=10, max=15), Regexp(r'^[0-9]+$')])
+    # --------------------------------------------------------------
+
     role = SelectField("Role", choices=[("penyewa", "Penyewa"), ("staff", "Staff"), ("admin", "Admin")], validators=[DataRequired()])
     submit = SubmitField("Update User")
 
@@ -277,7 +294,7 @@ class PaymentUploadForm(FlaskForm):
         validators=[
             FileRequired(message="You must upload a payment proof."),
             FileAllowed(["jpg", "jpeg", "png", "pdf"], "Allowed: jpg, png, pdf"),
-            FileSize(10 * 1024 * 1024),  # 10 MB max for payment proofs
+            FileSize(10 * 1024 * 1024),  # 10 MB max
         ],
     )
     submit = SubmitField("Confirm Payment")

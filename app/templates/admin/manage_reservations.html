@@ -1,4 +1,4 @@
-{# templates/admin/manage_reservations.html (FULL REPLACE - STAFF NO PROOF) #}
+{# templates/admin/manage_reservations.html (FULL REPLACE - DENGAN LOGIC WA) #}
 {% extends "base.html" %}
 
 {% block title %}Manajemen Reservasi{% endblock %}
@@ -92,12 +92,23 @@
                       <div class="d-flex align-items-center gap-2">
                           <small class="text-muted text-truncate">{{ rental.borrower.email }}</small>
                           
-                          <a href="https://wa.me/6281234567890?text=Halo%20{{ rental.borrower.username }},%20terkait%20order%20{{ rental.public_id }}..." 
-                             target="_blank" 
-                             class="text-success text-decoration-none" 
-                             title="Chat WhatsApp">
-                              <i class="fab fa-whatsapp"></i>
-                          </a>
+                          {# --- LOGIC WHATSAPP REAL --- #}
+                          {% if rental.borrower.phone %}
+                              {# Jika User PUNYA Nomor HP #}
+                              <a href="https://wa.me/{{ rental.borrower.phone }}?text=Halo%20{{ rental.borrower.username }},%20terkait%20pesanan%20{{ rental.public_id }}..." 
+                                 target="_blank" 
+                                 class="text-success text-decoration-none" 
+                                 title="Chat WhatsApp (+{{ rental.borrower.phone }})">
+                                 <i class="fab fa-whatsapp fa-lg"></i>
+                              </a>
+                          {% else %}
+                              {# Jika User BELUM Isi Nomor HP (Disable icon) #}
+                              <span class="text-secondary opacity-25" title="User belum isi nomor HP">
+                                 <i class="fab fa-whatsapp fa-lg"></i>
+                              </span>
+                          {% endif %}
+                          {# --------------------------- #}
+
                       </div>
                   </div>
                 </div>
@@ -112,7 +123,7 @@
                     <span class="fw-bold text-primary">Rp {{ "{:,.0f}".format(rental.total_price) }}</span>
                 </div>
 
-                {# --- LOGIC BARU: HANYA TAMPIL JIKA USER ADALAH ADMIN --- #}
+                {# --- HANYA ADMIN YANG BISA LIHAT BUKTI --- #}
                 {% if rental.payment_proof and current_user.role == 'admin' %}
                   <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none view-proof-btn"
                           data-bs-toggle="modal" data-bs-target="#proofModal"
@@ -121,7 +132,7 @@
                     <small><i class="fas fa-paperclip"></i> Lihat Bukti Bayar</small>
                   </button>
                 {% endif %}
-                {# ----------------------------------------------------- #}
+                {# ----------------------------------------- #}
               </td>
 
               <td class="align-top py-3">
@@ -168,7 +179,6 @@
                     {% elif rental.order_status == 'ACC' %}
                       
                       {% if rental.payment_status == 'Menunggu Konfirmasi' %}
-                        {# Konfirmasi Pembayaran juga sebaiknya hanya Admin, tapi jika Staff boleh konfirmasi, biarkan saja #}
                         <form method="POST" action="{{ url_for('admin.confirm_payment', rental_id=rental.id) }}">
                           <button class="btn btn-sm btn-primary" title="Validasi Pembayaran">Validasi</button>
                         </form>

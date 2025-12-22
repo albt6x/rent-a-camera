@@ -8,9 +8,9 @@
 
     <div class="row">
         
-        <div class="col-md-2">
+        <div class="col-md-2 mb-4">
             <h5 class="mb-3">Kategori</h5>
-            <div class="list-group">
+            <div class="list-group shadow-sm">
                 <a href="{{ url_for('catalog.list_items') }}" 
                    class="list-group-item list-group-item-action {% if not current_category %}active{% endif %}">
                     Semua
@@ -43,8 +43,7 @@
                         {% endif %}
                     </small>
                 </div>
-                
-                </div>
+            </div>
 
             <hr>
 
@@ -53,55 +52,46 @@
                     {% for item in items.items %}
                     <div class="col">
                         
-                        <div class="card flip-card shadow-sm h-100">
+                        <div class="card flip-card shadow-sm h-100 border-0">
                             <div class="flip-card-inner">
                                 
-                                <div class="flip-card-front">
+                                <div class="flip-card-front bg-white shadow-sm rounded">
                                     <img src="{{ url_for('static', filename='uploads/items/' + (item.image_filename or 'default_item.jpg')) }}" 
-                                             class="card-img-top" 
-                                             alt="{{ item.name }}" 
-                                             style="height: 200px; object-fit: cover;">
+                                         class="card-img-top rounded-top" 
+                                         alt="{{ item.name }}" 
+                                         style="height: 200px; object-fit: cover;"
+                                         onerror="this.src='{{ url_for('static', filename='uploads/items/default_item.jpg') }}'">
                                     
                                     <div class="card-body d-flex flex-column">
                                         <h5 class="card-title">{{ item.name }}</h5>
                                         <p class="card-text text-muted small mb-1">{{ item.category.name if item.category else '-' }}</p>
                                         
-                                        <p class="card-text fw-bold">
+                                        <p class="card-text fw-bold mb-3">
                                             Rp {{ "{:,.0f}".format(item.price_per_day|float) }}
                                             <small class="text-muted">/ 24 Jam</small>
                                         </p>
 
-                                        <button class="btn btn-sm detail-spec-btn flip-trigger mb-3 w-100">
+                                        <button type="button" class="btn btn-sm detail-spec-btn flip-trigger mb-3 w-100">
                                             Lihat Detail Spesifikasi
                                         </button>
 
                                         <div class="mt-auto pt-2">
                                             
-                                            {# Jika USER BIASA / GUEST: Tampilkan tombol beli #}
+                                            {# Jika USER BIASA / GUEST: Form Belanja dengan CSRF Protection #}
                                             {% if not current_user.is_authenticated or current_user.role != 'admin' %}
-                                                <form method="POST" 
-                                                      action="{{ url_for('cart.add_to_cart', item_id=item.id) }}" 
-                                                      class="d-flex align-items-center">
-                                                    
+                                                <form method="POST" action="{{ url_for('cart.add_to_cart', item_id=item.id) }}" class="d-flex align-items-center">
+                                                    {{ form.csrf_token if form and form.csrf_token else '' }}
                                                     <input type="hidden" name="item_id" value="{{ item.id }}">
 
-                                                    <button type="submit"
-                                                            name="duration"
-                                                            value="12"
-                                                            class="btn btn-sm duration-btn me-2"
-                                                            title="Harga 12 Jam">
+                                                    <button type="submit" name="duration" value="12" class="btn btn-sm duration-btn me-2 flex-fill" title="Harga 12 Jam">
                                                         12 Jam
                                                     </button>
 
-                                                    <button type="submit"
-                                                            name="duration"
-                                                            value="24"
-                                                            class="btn btn-sm duration-btn me-2"
-                                                            title="Harga 24 Jam">
+                                                    <button type="submit" name="duration" value="24" class="btn btn-sm duration-btn me-2 flex-fill" title="Harga 24 Jam">
                                                         24 Jam
                                                     </button>
 
-                                                    <small class="text-success ms-auto">
+                                                    <small class="text-success ms-auto fw-bold">
                                                         Stok: {{ item.stock }}
                                                     </small>
                                                 </form>
@@ -120,14 +110,14 @@
                                     </div>
                                 </div>
 
-                                <div class="flip-card-back">
+                                <div class="flip-card-back shadow-sm bg-white rounded border">
                                     <div class="card-body d-flex flex-column">
-                                        <h5 class="card-title">{{ item.name }}</h5>
+                                        <h5 class="card-title text-primary">{{ item.name }}</h5>
                                         <hr>
-                                        <p class="item-description" style="font-size: 0.85rem; flex-grow: 1;">
+                                        <div class="item-description custom-scrollbar" style="font-size: 0.85rem; flex-grow: 1; overflow-y: auto;">
                                             {{ item.description }}
-                                        </p>
-                                        <button class="btn btn-sm btn-outline-secondary flip-trigger mt-auto">
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary flip-trigger mt-3 w-100">
                                             Kembali ke Gambar
                                         </button>
                                     </div>
@@ -138,40 +128,34 @@
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="col-12 mt-4">
-                        
+                    <div class="col-12 mt-4 text-center">
                         {% set q = request.args.get('q', '') %}
-
                         {% if q %}
-                            <div class="alert alert-info text-center">
+                            <div class="alert alert-info">
                                 Tidak ada hasil untuk <strong>{{ q }}</strong>.
-                                Coba kata kunci lain atau 
-                                <a href="{{ url_for('catalog.list_items') }}">lihat semua barang</a>.
+                                <br>
+                                <a href="{{ url_for('catalog.list_items') }}" class="btn btn-link mt-2">Lihat semua barang</a>
                             </div>
-
                         {% elif current_category %}
-                            <div class="alert alert-info text-center">
+                            <div class="alert alert-info">
                                 Belum ada barang di kategori <strong>{{ current_category.name }}</strong>.
                             </div>
-
                         {% else %}
-                            <div class="alert alert-warning text-center">
-                                Belum ada barang tersedia saat ini.  
-                                Silakan cek kembali nanti atau hubungi admin.
+                            <div class="alert alert-warning">
+                                Belum ada barang tersedia saat ini. Silakan cek kembali nanti.
                             </div>
                         {% endif %}
-
                     </div>
                 {% endif %}
             </div>
 
             {% if items and items.pages > 1 %}
-            <nav aria-label="Pagination" class="mt-4">
+            <nav aria-label="Pagination" class="mt-5">
                 <ul class="pagination justify-content-center">
                     {# Previous #}
                     {% if items.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{% if current_category %}{{ url_for('catalog.list_items', category_id=current_category.id, page=items.prev_num) }}{% else %}{{ url_for('catalog.list_items', page=items.prev_num) }}{% endif %}">Previous</a>
+                            <a class="page-link" href="{{ url_for('catalog.list_items', category_id=request.args.get('category_id'), page=items.prev_num, q=request.args.get('q', '')) }}">Previous</a>
                         </li>
                     {% else %}
                         <li class="page-item disabled"><span class="page-link">Previous</span></li>
@@ -182,14 +166,14 @@
                     {% set end = items.page + 2 if items.page + 2 <= items.pages else items.pages %}
                     {% for p in range(start, end + 1) %}
                         <li class="page-item {% if p == items.page %}active{% endif %}">
-                            <a class="page-link" href="{% if current_category %}{{ url_for('catalog.list_items', category_id=current_category.id, page=p) }}{% else %}{{ url_for('catalog.list_items', page=p) }}{% endif %}">{{ p }}</a>
+                            <a class="page-link" href="{{ url_for('catalog.list_items', category_id=request.args.get('category_id'), page=p, q=request.args.get('q', '')) }}">{{ p }}</a>
                         </li>
                     {% endfor %}
 
                     {# Next #}
                     {% if items.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{% if current_category %}{{ url_for('catalog.list_items', category_id=current_category.id, page=items.next_num) }}{% else %}{{ url_for('catalog.list_items', page=items.next_num) }}{% endif %}">Next</a>
+                            <a class="page-link" href="{{ url_for('catalog.list_items', category_id=request.args.get('category_id'), page=items.next_num, q=request.args.get('q', '')) }}">Next</a>
                         </li>
                     {% else %}
                         <li class="page-item disabled"><span class="page-link">Next</span></li>
@@ -201,4 +185,21 @@
         </div>
     </div>
 </main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const buyForms = document.querySelectorAll('form[action*="add_to_cart"]');
+        buyForms.forEach(form => {
+            form.addEventListener('submit', function() {
+                const buttons = this.querySelectorAll('button[type="submit"]');
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    if (btn.classList.contains('active-duration') || btn.value === "24") { // Opsional: Beri tanda loading pada salah satu
+                         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                    }
+                });
+            });
+        });
+    });
+</script>
 {% endblock content %}

@@ -1,4 +1,4 @@
-# app/auth/routes.py  (FULL REPLACE)
+# app/auth/routes.py (FULL REPLACE)
 
 from flask import (
     render_template,
@@ -8,6 +8,7 @@ from flask import (
     request,
     Blueprint,
     session,
+    make_response,  # Penting untuk hapus cookie manual
 )
 from app import db, bcrypt
 from app.forms import RegistrationForm, LoginForm
@@ -18,7 +19,7 @@ auth_bp = Blueprint("auth", __name__, template_folder="templates/auth")
 
 
 # ==========================================================
-# REGISTRASI
+# REGISTRASI (VERSI CEPAT - TANPA NO HP)
 # ==========================================================
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
@@ -32,6 +33,7 @@ def register():
             form.password.data
         ).decode("utf-8")
 
+        # Buat User Baru (Tanpa Phone - Phone diisi nanti di Profil)
         user = User(
             username=form.username.data,
             email=form.email.data,
@@ -55,10 +57,10 @@ def register():
 def login():
     """
     RULE LOGIN FINAL:
-    - Admin + otp_secret NULL  → SETUP 2FA (QR)
-    - Admin + otp_secret ADA   → VERIFY 2FA
-    - Staff                   → staff dashboard
-    - Penyewa                 → home
+    - Admin + otp_secret NULL  -> SETUP 2FA (QR)
+    - Admin + otp_secret ADA   -> VERIFY 2FA
+    - Staff                   -> staff dashboard
+    - Penyewa                 -> home
     """
 
     # kalau sudah login, arahkan sesuai role (ANTI LOOP)
@@ -103,12 +105,15 @@ def login():
                 return redirect(url_for("twofa.verify_page"))
 
             # ================= LOGIN NORMAL =================
+            # KUNCI REMEMBER ME: Parameter remember diambil dari form
             login_user(user, remember=form.remember.data)
 
             if user.role == "staff":
                 return redirect(url_for("staff.dashboard"))
 
-            return redirect(url_for("main.home"))
+            # Redirect ke halaman sebelumnya (next) jika ada
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for("main.home"))
 
         flash("Login gagal. Periksa email dan password.", "danger")
 
@@ -145,12 +150,23 @@ def twofa_verify():
 
 
 # ==========================================================
-# LOGOUT
+# LOGOUT (NUCLEAR FIX - HAPUS SEMUA DATA SESI)
 # ==========================================================
 @auth_bp.route("/logout")
-@login_required
+# JANGAN PAKAI @login_required DISINI AGAR TIDAK LOOPING
 def logout():
+    # 1. Logout user dari Flask-Login
     logout_user()
+    
+    # 2. Bersihkan session flask
     session.clear()
+    
+    # 3. Buat response redirect ke home
+    response = make_response(redirect(url_for("main.home")))
+    
+    # 4. PAKSA HAPUS COOKIE REMEMBER ME
+    response.set_cookie('remember_token', '', expires=0)
+    response.delete_cookie('remember_token')
+    
     flash("Anda telah logout.", "info")
-    return redirect(url_for("main.home"))
+    return response
