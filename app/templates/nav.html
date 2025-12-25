@@ -1,4 +1,4 @@
-{# templates/nav.html - FULL REPLACE (SEARCH ICON + GRID FILTER + CART ICON) #}
+{# templates/nav.html - FULL REPLACE (SEARCH HIDDEN ON LOGOUT) #}
 
 <style>
   /* --- 1. Style Standar --- */
@@ -20,7 +20,7 @@
   .auth-link:hover { background-color: #0b5ed7; color: #ffffff; }
   .nav-item-auth { margin-left: 0.5rem; }
 
-  /* --- 2. Style Search Bar Modern (Menyatu) --- */
+  /* --- 2. Style Search Bar Modern --- */
   .nav-search-form { 
       width: 520px; 
       max-width: 52vw; 
@@ -30,23 +30,21 @@
   @media (max-width: 992px) { .nav-search-form { width: 360px; max-width: 60vw; } }
   @media (max-width: 576px) { .nav-search-form { width: 100%; max-width: none; margin-top: 0.5rem; } }
 
-  /* Input Field */
   .nav-search-form .form-control {
-    border-radius: 50px 0 0 50px; /* Bulat kiri saja */
+    border-radius: 50px 0 0 50px;
     height: 40px; 
     padding-left: 20px; 
-    padding-right: 40px; /* Space untuk tombol X */
-    border-right: none; /* Hilangkan garis kanan biar nyatu sama tombol */
+    padding-right: 40px;
+    border-right: none;
   }
   .nav-search-form .form-control:focus {
       border-color: #ced4da;
-      box-shadow: none; /* Hilangkan glow biru default biar rapi */
+      box-shadow: none;
   }
 
-  /* Tombol Search (Ikon) */
   .nav-search-form .btn-search { 
       height: 40px; 
-      border-radius: 0 50px 50px 0; /* Bulat kanan saja */
+      border-radius: 0 50px 50px 0;
       padding: 0 20px; 
       border: 1px solid #ced4da;
       border-left: none;
@@ -59,10 +57,9 @@
       color: white;
   }
 
-  /* Tombol Clear (X) - Posisi disesuaikan */
   .nav-clear-btn {
     position: absolute; 
-    right: 60px; /* Geser agar tidak menabrak tombol search */
+    right: 60px; 
     top: 50%; 
     transform: translateY(-50%);
     border: none; background: transparent; color: #999; font-size: 18px;
@@ -90,8 +87,9 @@
         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.about') }}">Tentang</a></li>
       </ul>
 
-      {# --- SEARCH BAR --- #}
-      {% if not request.path.startswith('/admin') and not request.path.startswith('/staff') %}
+      {# --- SEARCH BAR LOGIC MODIFIED --- #}
+      {# Syarat Muncul: User sudah Login DAN bukan di halaman Admin/Staff #}
+      {% if current_user.is_authenticated and not request.path.startswith('/admin') and not request.path.startswith('/staff') %}
         
         <form class="d-flex me-3 nav-search-form" method="GET" action="{{ url_for('catalog.list_items') }}" id="nav-search-form" autocomplete="off">
           
@@ -107,6 +105,7 @@
         </form>
 
       {% else %}
+        {# Placeholder kosong saat user belum login agar layout tetap seimbang #}
         <div class="nav-search-placeholder me-3"></div>
       {% endif %}
 
@@ -128,7 +127,6 @@
               </a>
             </li>
           {% endif %}
-          {# ------------------------------ #}
 
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
@@ -162,15 +160,15 @@
   </div>
 </nav>
 
-{# ===================== JAVASCRIPT (FILTER PAGE + CLEAR) ===================== #}
+{# ===================== JAVASCRIPT ===================== #}
 <script>
   document.addEventListener("DOMContentLoaded", function() {
     const input = document.getElementById('nav-search-input');
     const btn = document.getElementById('nav-clear-btn');
     
+    // Jika user belum login, elemen ini tidak ada di DOM
     if (!input || !btn) return;
 
-    // Fungsi reset grid
     function showAllCards() {
         const cards = document.querySelectorAll('.card');
         cards.forEach(card => {
@@ -180,7 +178,6 @@
         });
     }
 
-    // --- 1. LOGIC CLEAR BUTTON ---
     function updateClear() {
       if (input.value && input.value.trim().length > 0) {
         btn.style.display = 'block';
@@ -198,28 +195,22 @@
       input.focus();
     });
 
-    // --- 2. LOGIC FILTER HALAMAN (Grid Filter) ---
     input.addEventListener('input', function() {
       const query = this.value.trim().toLowerCase();
       updateClear();
 
       const cards = document.querySelectorAll('.card');
-      
       if (cards.length > 0) {
           cards.forEach(card => {
              const text = card.textContent.toLowerCase();
              const shouldShow = (query === '' || text.includes(query));
-             
-             // Cari pembungkus kolom untuk di-hide/show
              const wrapper = card.closest('.col, [class*="col-"]');
-
              if (wrapper) wrapper.style.display = shouldShow ? '' : 'none';
              else card.style.display = shouldShow ? '' : 'none';
           });
       }
     });
 
-    // Handle tombol ESC
     input.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
         input.value = '';

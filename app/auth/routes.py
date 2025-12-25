@@ -1,5 +1,4 @@
-# app/auth/routes.py (FULL REPLACE)
-
+import time
 from flask import (
     render_template,
     redirect,
@@ -8,18 +7,25 @@ from flask import (
     request,
     Blueprint,
     session,
-    make_response,  # Penting untuk hapus cookie manual
+    make_response,
 )
-from app import db, bcrypt
-from app.forms import RegistrationForm, LoginForm
+from app import db, bcrypt, mail
+from app.forms import (
+    RegistrationForm, 
+    LoginForm, 
+    RequestResetForm, 
+    ResetPasswordForm
+)
 from app.models import User
+# IMPORT FUNGSI EMAIL DARI UTILS (Agar tidak dobel kode)
+from app.utils import send_reset_email 
 from flask_login import login_user, current_user, logout_user, login_required
+from flask_mail import Message
 
 auth_bp = Blueprint("auth", __name__, template_folder="templates/auth")
 
-
 # ==========================================================
-# REGISTRASI (VERSI CEPAT - TANPA NO HP)
+# REGISTRASI (TANPA NO HP)
 # ==========================================================
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
@@ -33,7 +39,6 @@ def register():
             form.password.data
         ).decode("utf-8")
 
-        # Buat User Baru (Tanpa Phone - Phone diisi nanti di Profil)
         user = User(
             username=form.username.data,
             email=form.email.data,
@@ -51,19 +56,10 @@ def register():
 
 
 # ==========================================================
-# LOGIN (ADMIN + FIRST TIME 2FA FIX)
+# LOGIN (DENGAN MODE DETEKTIF ERROR)
 # ==========================================================
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
-    """
-    RULE LOGIN FINAL:
-    - Admin + otp_secret NULL  -> SETUP 2FA (QR)
-    - Admin + otp_secret ADA   -> VERIFY 2FA
-    - Staff                   -> staff dashboard
-    - Penyewa                 -> home
-    """
-
-    # kalau sudah login, arahkan sesuai role (ANTI LOOP)
     if current_user.is_authenticated:
         if current_user.role == "admin":
             return redirect(url_for("admin.dashboard"))
@@ -76,52 +72,88 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
 
-        if user and bcrypt.check_password_hash(
-            user.password_hash, form.password.data
-        ):
-
-            # ================= ADMIN =================
+        # DETEKTIF KASUS 1: Email tidak ditemukan
+        if not user:
+            flash("Login Gagal: Email tidak terdaftar. Silakan daftar akun terlebih dahulu.", "danger")
+        
+        # DETEKTIF KASUS 2: Password tidak cocok
+        elif not bcrypt.check_password_hash(user.password_hash, form.password.data):
+            flash("Login Gagal: Password salah. Periksa huruf besar, kecil, dan simbol.", "danger")
+        
+        # KASUS 3: Sukses (Validasi Berhasil)
+        else:
+            # --- LOGIKA ADMIN (2FA) ---
             if user.role == "admin":
-
-                # simpan context login admin
                 session["pre_2fa_userid"] = user.id
                 session["pre_2fa_remember"] = bool(form.remember.data)
 
-                # 🔴 FIRST TIME SETUP 2FA (otp_secret NULL)
                 if not user.otp_secret:
-                    flash(
-                        "Aktifkan 2FA terlebih dahulu sebelum masuk dashboard.",
-                        "warning",
-                    )
-                    return redirect(
-                        url_for("twofa.twofa_setup", user_id=user.id)
-                    )
+                    flash("Aktifkan 2FA terlebih dahulu sebelum masuk dashboard.", "warning")
+                    return redirect(url_for("twofa.twofa_setup", user_id=user.id))
 
-                # 🟠 VERIFY 2FA (otp_secret SUDAH ADA)
-                flash(
-                    "Masukkan kode 2FA dari aplikasi autentikator Anda.",
-                    "info",
-                )
+                flash("Masukkan kode 2FA dari aplikasi autentikator Anda.", "info")
                 return redirect(url_for("twofa.verify_page"))
 
-            # ================= LOGIN NORMAL =================
-            # KUNCI REMEMBER ME: Parameter remember diambil dari form
+            # --- LOGIN NORMAL (PENYEWA/STAFF) ---
             login_user(user, remember=form.remember.data)
 
             if user.role == "staff":
                 return redirect(url_for("staff.dashboard"))
 
-            # Redirect ke halaman sebelumnya (next) jika ada
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for("main.home"))
-
-        flash("Login gagal. Periksa email dan password.", "danger")
 
     return render_template("auth/login.html", title="Login", form=form)
 
 
 # ==========================================================
-# FINAL LOGIN SETELAH 2FA
+# LUPA PASSWORD: MINTA LINK RESET
+# ==========================================================
+@auth_bp.route("/reset_password", methods=['GET', 'POST'])
+def reset_request():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.home'))
+    
+    form = RequestResetForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        try:
+            # Fungsi send_reset_email sekarang dipanggil dari utils.py
+            send_reset_email(user)
+            flash('Instruksi reset password telah dikirim ke email Anda. Silakan cek inbox.', 'info')
+        except Exception:
+            flash('Terjadi kesalahan pengiriman. Silakan coba lagi dalam 1 menit.', 'warning')
+        return redirect(url_for('auth.login'))
+    
+    return render_template('auth/reset_request.html', title='Reset Password', form=form)
+
+
+# ==========================================================
+# LUPA PASSWORD: HALAMAN INPUT PASSWORD BARU
+# ==========================================================
+@auth_bp.route("/reset_password/<token>", methods=['GET', 'POST'])
+def reset_token(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('main.home'))
+    
+    user = User.verify_reset_token(token)
+    if user is None:
+        flash('Token reset tidak valid atau sudah kedaluwarsa.', 'warning')
+        return redirect(url_for('auth.reset_request'))
+    
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+        user.password_hash = hashed_password
+        db.session.commit()
+        flash('Password Anda berhasil diperbarui! Silakan login dengan password baru.', 'success')
+        return redirect(url_for('auth.login'))
+    
+    return render_template('auth/reset_token.html', title='Reset Password', form=form)
+
+
+# ==========================================================
+# FINAL LOGIN SETELAH 2FA (ADMIN ONLY)
 # ==========================================================
 @auth_bp.route("/2fa-verify", methods=["GET"])
 def twofa_verify():
@@ -140,7 +172,7 @@ def twofa_verify():
     remember_flag = bool(session.get("pre_2fa_remember", False))
     login_user(user, remember=remember_flag)
 
-    # bersihkan session 2FA
+    # Bersihkan session 2FA setelah berhasil login
     session.pop("pre_2fa_userid", None)
     session.pop("pre_2fa_verified", None)
     session.pop("pre_2fa_remember", None)
@@ -150,23 +182,18 @@ def twofa_verify():
 
 
 # ==========================================================
-# LOGOUT (NUCLEAR FIX - HAPUS SEMUA DATA SESI)
+# LOGOUT (HAPUS SEMUA SESI & COOKIE)
 # ==========================================================
 @auth_bp.route("/logout")
-# JANGAN PAKAI @login_required DISINI AGAR TIDAK LOOPING
 def logout():
-    # 1. Logout user dari Flask-Login
     logout_user()
-    
-    # 2. Bersihkan session flask
     session.clear()
     
-    # 3. Buat response redirect ke home
     response = make_response(redirect(url_for("main.home")))
     
-    # 4. PAKSA HAPUS COOKIE REMEMBER ME
+    # Paksa hapus cookie remember me agar benar-benar keluar
     response.set_cookie('remember_token', '', expires=0)
     response.delete_cookie('remember_token')
     
-    flash("Anda telah logout.", "info")
+    flash("Anda telah berhasil logout.", "info")
     return response

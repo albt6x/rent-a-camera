@@ -1,4 +1,4 @@
-{# templates/booking/history.html - FULL REPLACE #}
+{# templates/booking/history.html - FULL REPLACE (FIX POSISI PRESISI) #}
 {% extends "base.html" %}
 
 {% block title %}{{ title }}{% endblock %}
@@ -33,7 +33,7 @@
                                     <th scope="col" class="py-3" style="width: 15%;"><i class="fas fa-tag me-1"></i> Total</th>
                                     <th scope="col" class="py-3 text-center" style="width: 12%;">Status Order</th>
                                     <th scope="col" class="py-3 text-center" style="width: 15%;">Status Bayar</th>
-                                    <th scope="col" class="py-3 pe-4 text-end" style="width: 25%;">Aksi</th>
+                                    <th scope="col" class="py-3 pe-4 text-center" style="width: 25%;">Aksi</th> 
                                 </tr>
                             </thead>
                             <tbody>
@@ -81,32 +81,36 @@
                                         {% endif %}
                                     </td>
 
-                                    <td class="text-end pe-4">
-                                        <div class="d-flex justify-content-end gap-2">
-                                            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ rental.id }}">
-                                                <i class="fas fa-eye"></i> Detail
-                                            </button>
+                                    <td class="py-3 text-nowrap">
+                                        <div class="row g-0 align-items-center">
+                                            <div class="col-6 text-end pe-1">
+                                                <button type="button" class="btn btn-sm btn-outline-info m-0" data-bs-toggle="modal" data-bs-target="#detailModal{{ rental.id }}">
+                                                    <i class="fas fa-eye"></i> Detail
+                                                </button>
+                                            </div>
+                                            
+                                            <div class="col-6 text-start ps-1">
+                                                {% if rental.order_status == 'Ditolak' %}
+                                                    <button class="btn btn-sm btn-danger disabled border-0 m-0" title="Ditolak"><i class="fas fa-times"></i></button>
 
-                                            {% if rental.order_status == 'Ditolak' %}
-                                                <button class="btn btn-sm btn-danger disabled border-0" title="Ditolak"><i class="fas fa-times"></i></button>
+                                                {% elif rental.order_status == 'Ditinjau' %}
+                                                    <button class="btn btn-sm btn-warning disabled border-0 text-white m-0" title="Menunggu Review"><i class="fas fa-clock"></i></button>
 
-                                            {% elif rental.order_status == 'Ditinjau' %}
-                                                <button class="btn btn-sm btn-warning disabled border-0 text-white" title="Menunggu Review"><i class="fas fa-clock"></i></button>
+                                                {% elif rental.payment_status == 'Selesai' %}
+                                                    <button class="btn btn-sm btn-success disabled border-0 m-0" title="Selesai"><i class="fas fa-check"></i></button>
 
-                                            {% elif rental.payment_status == 'Selesai' %}
-                                                <button class="btn btn-sm btn-success disabled border-0" title="Selesai"><i class="fas fa-check"></i></button>
+                                                {% elif rental.order_status == 'ACC' and rental.payment_status == 'Belum Bayar' %}
+                                                    <a href="{{ url_for('booking.upload_payment', rental_id=rental.id) }}" class="btn btn-sm btn-primary shadow-sm px-3 m-0">
+                                                        Bayar
+                                                    </a>
 
-                                            {% elif rental.order_status == 'ACC' and rental.payment_status == 'Belum Bayar' %}
-                                                <a href="{{ url_for('booking.upload_payment', rental_id=rental.id) }}" class="btn btn-sm btn-primary shadow-sm px-3">
-                                                    Bayar
-                                                </a>
+                                                {% elif rental.payment_status == 'Menunggu Konfirmasi' %}
+                                                    <button class="btn btn-sm btn-secondary disabled m-0" style="opacity: 0.7;">Proses</button>
 
-                                            {% elif rental.payment_status == 'Menunggu Konfirmasi' %}
-                                                <button class="btn btn-sm btn-secondary disabled" style="opacity: 0.7;">Proses</button>
-
-                                            {% elif rental.payment_status == 'Pengambilan' %}
-                                                 <button class="btn btn-sm btn-info text-white disabled border-0"><i class="fas fa-box-open"></i></button>
-                                            {% endif %}
+                                                {% elif rental.payment_status == 'Pengambilan' %}
+                                                     <button class="btn btn-sm btn-info text-white disabled border-0 m-0"><i class="fas fa-box-open"></i></button>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -186,31 +190,20 @@
                 <div class="card-footer bg-white py-3 border-top">
                     <nav aria-label="Navigasi Halaman">
                         <ul class="pagination justify-content-center mb-0">
-                            
                             <li class="page-item {% if not rentals.has_prev %}disabled{% endif %}">
                                 <a class="page-link" href="{{ url_for('booking.history', page=rentals.prev_num) if rentals.has_prev else '#' }}" tabindex="-1">
                                     Previous
                                 </a>
                             </li>
-
                             {% for page_num in rentals.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
                                 {% if page_num %}
-                                    {% if page_num == rentals.page %}
-                                        <li class="page-item active">
-                                            <span class="page-link">{{ page_num }}</span>
-                                        </li>
-                                    {% else %}
-                                        <li class="page-item">
-                                            <a class="page-link" href="{{ url_for('booking.history', page=page_num) }}">{{ page_num }}</a>
-                                        </li>
-                                    {% endif %}
-                                {% else %}
-                                    <li class="page-item disabled">
-                                        <span class="page-link">...</span>
+                                    <li class="page-item {% if page_num == rentals.page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for('booking.history', page=page_num) }}">{{ page_num }}</a>
                                     </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
                                 {% endif %}
                             {% endfor %}
-
                             <li class="page-item {% if not rentals.has_next %}disabled{% endif %}">
                                 <a class="page-link" href="{{ url_for('booking.history', page=rentals.next_num) if rentals.has_next else '#' }}">
                                     Next
@@ -220,7 +213,6 @@
                     </nav>
                 </div>
                 {% endif %}
-                
             </div>
         </div>
     </div>

@@ -32,7 +32,7 @@
       body {
         min-height: 100vh;
         /* 2. PENTING: Bootstrap suka otomatis nambah padding-right saat modal buka. 
-           Kita paksa 0 supaya tidak bentrok dengan scrollbar-gutter */
+            Kita paksa 0 supaya tidak bentrok dengan scrollbar-gutter */
         padding-right: 0 !important; 
       }
       
@@ -40,19 +40,28 @@
       main.container {
         padding-top: 86px; 
       }
+
+      /* Khusus halaman tanpa navbar (Reset Password), kita buat konten benar-benar di tengah */
+      .no-nav main.container {
+        padding-top: 0 !important;
+      }
     </style>
 
     {% block head_extra %}{% endblock %}
   </head>
 
-  <body class="bg-light">
+  {# Menambahkan class no-nav jika halaman adalah Reset Password untuk layout full center #}
+  <body class="bg-light {% if self.title()|trim == 'Reset Password' %}no-nav{% endif %}">
 
-    {# HEADER #}
-    {% block header %}
-    <header class="fixed-top">
-      {% include 'nav.html' %}
-    </header>
-    {% endblock header %}
+    {# HEADER / NAVBAR #}
+    {# Logika: Sembunyikan Header HANYA jika judul halaman adalah 'Reset Password' #}
+    {% if self.title()|trim != 'Reset Password' %}
+      {% block header %}
+      <header class="fixed-top">
+        {% include 'nav.html' %}
+      </header>
+      {% endblock header %}
+    {% endif %}
 
     {% block content %}
       <main class="container">

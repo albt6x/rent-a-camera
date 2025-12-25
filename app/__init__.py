@@ -136,6 +136,7 @@ def create_app(config_string="config.Config"):
     }
 
     def _find_blueprint_from_module(module):
+        """Helper untuk menemukan blueprint dari module"""
         for candidate in ("bp", "auth_bp", "main_bp", "catalog_bp", "cart_bp", "booking_bp", "admin_bp", "account_bp", "staff_bp", "twofa_bp"):
             bp = getattr(module, candidate, None)
             if bp is not None:
@@ -147,9 +148,13 @@ def create_app(config_string="config.Config"):
             mod = importlib.import_module(module_path)
             bp = _find_blueprint_from_module(mod)
             if bp:
-                app.register_blueprint(bp, url_prefix=url_prefix) if url_prefix else app.register_blueprint(bp)
+                if url_prefix:
+                    app.register_blueprint(bp, url_prefix=url_prefix)
+                else:
+                    app.register_blueprint(bp)
+                app.logger.info(f"✅ Blueprint '{module_path}' berhasil didaftarkan")
         except Exception as e:
-            app.logger.debug(f"Info Blueprint {module_path}: {e}")
+            app.logger.debug(f"ℹ️ Blueprint {module_path}: {e}")
 
     # ==========================================================
     # 7. Context Processor
@@ -185,9 +190,10 @@ def create_app(config_string="config.Config"):
             return None
 
     # ==========================================================
-    # 10. EMAIL Helpers
+    # 9. EMAIL Helpers
     # ==========================================================
     def _send_async_wrapper(send_callable, *args, **kwargs):
+        """Wrapper untuk mengirim email di background thread"""
         with app.app_context():
             try:
                 return send_callable(*args, **kwargs)
@@ -196,34 +202,61 @@ def create_app(config_string="config.Config"):
                 return False
 
     def send_email(subject, recipients, body, html=None, sender=None, force_send=False):
+        """
+        Fungsi utama untuk mengirim email
+        
+        Args:
+            subject: Judul email
+            recipients: List email penerima atau string tunggal
+            body: Isi email plain text
+            html: Isi email HTML (opsional)
+            sender: Email pengirim (opsional, ambil dari config)
+            force_send: Paksa kirim email meskipun PRINT_EMAILS_TO_CONSOLE=True
+        """
         if isinstance(recipients, str):
             recipients = [recipients]
 
-        # Handle Console Printing
+        # Handle Console Printing (untuk development)
         if app.config.get("PRINT_EMAILS_TO_CONSOLE", False) and not force_send:
             try:
                 app.logger.info(f"[EMAIL-PRINT] To: {recipients} | Subject: {subject}")
+                app.logger.debug(f"[EMAIL-BODY]\n{body}")
                 return True
             except Exception as e:
                 app.logger.error(f"Gagal mencetak email ke console: {e}")
 
-        # Async Send
+        # Kirim email via Flask-Mail (async)
         if _HAS_FLASK_MAIL and mail:
             try:
-                msg = Message(subject=subject, recipients=recipients, body=body, html=html, sender=sender)
-                threading.Thread(target=_send_async_wrapper, args=(mail.send, msg), daemon=True).start()
+                msg = Message(
+                    subject=subject,
+                    recipients=recipients,
+                    body=body,
+                    html=html,
+                    sender=sender or app.config.get('MAIL_DEFAULT_SENDER')
+                )
+                # Kirim di background thread
+                threading.Thread(
+                    target=_send_async_wrapper,
+                    args=(mail.send, msg),
+                    daemon=True
+                ).start()
+                app.logger.info(f"✅ Email dijadwalkan: {subject} → {recipients}")
                 return True
             except Exception as e:
-                app.logger.error(f"Gagal menjadwalkan email via Flask-Mail: {e}")
+                app.logger.error(f"❌ Gagal menjadwalkan email via Flask-Mail: {e}")
+        else:
+            app.logger.warning("Flask-Mail tidak tersedia atau tidak dikonfigurasi.")
         
         return False
 
     app.send_email = send_email
 
     # ==========================================================
-    # 11. 2FA Helpers
+    # 10. 2FA Helpers
     # ==========================================================
     def qr_image_base64(provisioning_uri):
+        """Generate QR Code untuk 2FA dan return sebagai base64 image"""
         if not qrcode:
             app.logger.error("Library qrcode tidak ditemukan.")
             return ""
@@ -240,4 +273,5 @@ def create_app(config_string="config.Config"):
             return ""
 
     app.qr_image_base64 = qr_image_base64
+    
     return app

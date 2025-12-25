@@ -1,4 +1,4 @@
-{# templates/admin/manage_reservations.html (FULL REPLACE - DENGAN LOGIC WA) #}
+{# templates/admin/manage_reservations.html (FULL REPLACE - WITH PAGINATION) #}
 {% extends "base.html" %}
 
 {% block title %}Manajemen Reservasi{% endblock %}
@@ -9,7 +9,11 @@
 {% set base_endpoint = 'staff.dashboard' if is_staff_dashboard else 'admin.manage_reservations' %}
 
 <div class="admin-sidebar">
-  {% include 'admin/admin_menu.html' %}
+  {% if is_staff_dashboard %}
+    {% include 'staff/staff_menu.html' %}
+  {% else %}
+    {% include 'admin/admin_menu.html' %}
+  {% endif %}
 </div>
 
 <main class="admin-content">
@@ -20,12 +24,12 @@
       <div class="row g-3 align-items-center">
           <div class="col-md-6">
               <h2 class="mb-1 fw-bold">Manajemen Reservasi</h2>
-              <p class="text-muted mb-0">Kelola persetujuan dan status pesanan masuk.</p>
+              <p class="text-muted mb-0">Kelola persetujuan, validasi pembayaran, dan pengembalian.</p>
           </div>
           
           <div class="col-md-6">
             <div class="d-flex gap-2 justify-content-md-end">
-                <div class="input-group" style="max-width: 300px;">
+                <div class="input-group shadow-sm" style="max-width: 300px;">
                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
                     <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="Cari Nama / ID Order...">
                 </div>
@@ -37,9 +41,9 @@
       <div class="mt-3">
           <div class="btn-group shadow-sm" role="group">
             <a href="{{ url_for(base_endpoint) }}" class="btn btn-sm btn-outline-dark {% if not status_filter %}active{% endif %}">Semua</a>
-            <a href="{{ url_for(base_endpoint, status='Ditinjau') }}" class="btn btn-sm btn-outline-warning text-dark {% if status_filter == 'Ditinjau' %}active{% endif %}">Baru</a>
-            <a href="{{ url_for(base_endpoint, status='ACC') }}" class="btn btn-sm btn-outline-success {% if status_filter == 'ACC' %}active{% endif %}">Aktif</a>
-            <a href="{{ url_for(base_endpoint, status='Selesai') }}" class="btn btn-sm btn-outline-secondary {% if status_filter == 'Selesai' %}active{% endif %}">Selesai</a>
+            <a href="{{ url_for(base_endpoint, status='Ditinjau') }}" class="btn btn-sm btn-outline-warning text-dark {% if status_filter == 'Ditinjau' %}active{% endif %}">Perlu Review</a>
+            <a href="{{ url_for(base_endpoint, status='ACC') }}" class="btn btn-sm btn-outline-success {% if status_filter == 'ACC' %}active{% endif %}">Berjalan</a>
+            <a href="{{ url_for(base_endpoint, status='Selesai') }}" class="btn btn-sm btn-outline-secondary {% if status_filter == 'Selesai' %}active{% endif %}">Riwayat Selesai</a>
           </div>
       </div>
       {% endif %}
@@ -51,14 +55,14 @@
     <div class="card-body p-0">
       <div class="table-responsive">
         
-        <table class="table table-hover mb-0 align-middle" id="rentalTable" style="table-layout: fixed; min-width: 1000px;">
+        <table class="table table-hover mb-0 align-middle" id="rentalTable" style="min-width: 1100px;">
           <thead class="bg-light text-secondary border-bottom">
             <tr>
               <th style="width: 15%;" class="ps-4">ID Order</th>
               <th style="width: 25%;">Pelanggan</th>
               <th style="width: 20%;">Info Sewa</th>
               <th style="width: 15%;">Status</th>
-              <th style="width: 25%;" class="text-end pe-4">Aksi</th>
+              <th style="width: 25%;" class="text-center">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -66,55 +70,48 @@
           {% if rentals and rentals.items %}
             {% for rental in rentals.items %}
             <tr class="rental-row">
-              <td class="ps-4 align-top py-3">
+              
+              <td class="ps-4 py-3">
                  <span class="badge bg-light text-dark border font-monospace mb-1 searchable">
-                    {{ rental.public_id if rental.public_id else "#" ~ rental.id }}
+                   {{ rental.public_id if rental.public_id else "#" ~ rental.id }}
                  </span>
                  <br>
                  <small class="text-muted" style="font-size: 0.75rem;">
-                   {{ rental.created_at.strftime('%d/%m %H:%M') }}
+                   <i class="far fa-clock me-1"></i>{{ rental.created_at.strftime('%d/%m %H:%M') }}
                  </small>
               </td>
 
-              <td class="align-top py-3">
-                <div class="d-flex">
-                  {% if rental.borrower and rental.borrower.image_file %}
-                    <img src="{{ url_for('static', filename='uploads/profile_pics/' ~ rental.borrower.image_file) }}"
-                         width="40" height="40" class="rounded-circle border me-3" style="object-fit:cover;">
-                  {% else %}
-                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-3" style="width:40px; height:40px;">
-                        <i class="bi bi-person-fill fs-5"></i>
-                    </div>
-                  {% endif %}
-                  <div style="overflow: hidden;">
-                      <h6 class="mb-0 fw-bold text-truncate text-dark searchable">{{ rental.borrower.username }}</h6>
+              <td class="py-3">
+                <div class="d-flex align-items-center">
+                  {% if rental.borrower %}
+                      {% if rental.borrower.image_file %}
+                        <img src="{{ url_for('static', filename='uploads/profile_pics/' ~ rental.borrower.image_file) }}"
+                             width="40" height="40" class="rounded-circle border me-3 flex-shrink-0" style="object-fit:cover;">
+                      {% else %}
+                        <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center me-3 flex-shrink-0" style="width:40px; height:40px;">
+                            <i class="bi bi-person-fill fs-5"></i>
+                        </div>
+                      {% endif %}
                       
-                      <div class="d-flex align-items-center gap-2">
-                          <small class="text-muted text-truncate">{{ rental.borrower.email }}</small>
-                          
-                          {# --- LOGIC WHATSAPP REAL --- #}
-                          {% if rental.borrower.phone %}
-                              {# Jika User PUNYA Nomor HP #}
-                              <a href="https://wa.me/{{ rental.borrower.phone }}?text=Halo%20{{ rental.borrower.username }},%20terkait%20pesanan%20{{ rental.public_id }}..." 
-                                 target="_blank" 
-                                 class="text-success text-decoration-none" 
-                                 title="Chat WhatsApp (+{{ rental.borrower.phone }})">
-                                 <i class="fab fa-whatsapp fa-lg"></i>
-                              </a>
-                          {% else %}
-                              {# Jika User BELUM Isi Nomor HP (Disable icon) #}
-                              <span class="text-secondary opacity-25" title="User belum isi nomor HP">
-                                 <i class="fab fa-whatsapp fa-lg"></i>
-                              </span>
-                          {% endif %}
-                          {# --------------------------- #}
-
+                      <div style="overflow: hidden;">
+                          <h6 class="mb-0 fw-bold text-truncate text-dark searchable" style="max-width: 150px;">{{ rental.borrower.username }}</h6>
+                          <div class="d-flex align-items-center gap-2">
+                              <small class="text-muted text-truncate">{{ rental.borrower.email }}</small>
+                              {% if rental.borrower.phone %}
+                                  <a href="https://wa.me/{{ rental.borrower.phone }}?text=Halo%20{{ rental.borrower.username }},%20terkait%20pesanan%20{{ rental.public_id }}..." 
+                                     target="_blank" class="text-success text-decoration-none" title="Chat WhatsApp">
+                                     <i class="fab fa-whatsapp"></i>
+                                  </a>
+                              {% endif %}
+                          </div>
                       </div>
-                  </div>
+                  {% else %}
+                      <span class="text-danger fst-italic">User Terhapus</span>
+                  {% endif %}
                 </div>
               </td>
 
-              <td class="align-top py-3">
+              <td class="py-3">
                 <div class="mb-1">
                     <i class="bi bi-calendar-event me-1 text-secondary"></i> 
                     <span class="fw-medium">{{ rental.pickup_date.strftime('%d %b %Y') if rental.pickup_date else '-' }}</span>
@@ -123,78 +120,146 @@
                     <span class="fw-bold text-primary">Rp {{ "{:,.0f}".format(rental.total_price) }}</span>
                 </div>
 
-                {# --- HANYA ADMIN YANG BISA LIHAT BUKTI --- #}
-                {% if rental.payment_proof and current_user.role == 'admin' %}
-                  <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none view-proof-btn"
-                          data-bs-toggle="modal" data-bs-target="#proofModal"
-                          data-img="{{ url_for('static', filename='uploads/payment_proofs/' ~ rental.payment_proof) }}"
-                          data-title="Bukti - {{ rental.public_id }}">
-                    <small><i class="fas fa-paperclip"></i> Lihat Bukti Bayar</small>
-                  </button>
+                {# TOMBOL LIHAT BUKTI - HANYA UNTUK ADMIN #}
+                {% if not is_staff_dashboard %}
+                  {% if rental.payment_proof %}
+                    <button type="button" class="btn btn-xs btn-outline-secondary p-1 px-2 text-decoration-none view-proof-btn mt-1"
+                            data-bs-toggle="modal" data-bs-target="#proofModal"
+                            data-img="{{ url_for('static', filename='uploads/payment_proofs/' ~ rental.payment_proof) }}"
+                            data-title="Bukti - {{ rental.public_id }}">
+                      <small><i class="fas fa-paperclip me-1"></i>Lihat Bukti</small>
+                    </button>
+                  {% elif rental.payment_status in ['Pengambilan', 'Selesai'] and not rental.payment_proof %}
+                     <span class="badge bg-light text-secondary border mt-1" style="font-weight:normal; font-size:10px;">
+                          via Cash / Manual
+                     </span>
+                  {% endif %}
+                {% else %}
+                  {# STAFF: HANYA TAMPILKAN INFO METODE BAYAR, TANPA TOMBOL #}
+                  {% if rental.payment_proof %}
+                     <span class="badge bg-light text-secondary border mt-1" style="font-weight:normal; font-size:10px;">
+                          via Transfer
+                     </span>
+                  {% elif rental.payment_status in ['Pengambilan', 'Selesai'] and not rental.payment_proof %}
+                     <span class="badge bg-light text-secondary border mt-1" style="font-weight:normal; font-size:10px;">
+                          via Cash / Manual
+                     </span>
+                  {% endif %}
                 {% endif %}
-                {# ----------------------------------------- #}
               </td>
 
-              <td class="align-top py-3">
-                <div class="mb-1">
+              <td class="py-3">
+                <div class="d-flex flex-column gap-1 align-items-start">
+                    {# ORDER STATUS BADGE #}
                     {% if rental.order_status == 'Ditinjau' %}
-                        <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Review</span>
+                        <span class="badge bg-warning text-dark border border-warning">Review</span>
                     {% elif rental.order_status == 'ACC' %}
-                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>ACC</span>
+                        <span class="badge bg-success">ACC</span>
                     {% elif rental.order_status == 'Ditolak' %}
-                        <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Ditolak</span>
+                        <span class="badge bg-danger">Ditolak</span>
                     {% endif %}
-                </div>
-                <div>
-                    {% if rental.payment_status == 'Belum Bayar' %}
-                        <span class="badge bg-light text-secondary border">Belum Bayar</span>
+
+                    {# PAYMENT STATUS BADGE - PRIORITAS TINGGI #}
+                    {% if rental.payment_status == 'Selesai' %}
+                        <span class="badge bg-secondary">Selesai</span>
+                    {% elif rental.payment_status in ['Dibatalkan', 'Batal'] or rental.order_status == 'Ditolak' %}
+                        <span class="badge bg-secondary opacity-50">Cancel</span>
                     {% elif rental.payment_status == 'Menunggu Konfirmasi' %}
-                        <span class="badge bg-info text-dark">Cek Transfer</span>
+                        <span class="badge bg-info text-dark">Cek Bukti</span>
                     {% elif rental.payment_status == 'Pengambilan' %}
                         <span class="badge bg-primary">Siap Diambil</span>
-                    {% elif rental.payment_status == 'Selesai' %}
-                        <span class="badge bg-secondary">Selesai</span>
+                    {% elif rental.payment_status == 'Belum Bayar' %}
+                        <span class="badge bg-light text-secondary border">Belum Bayar</span>
+                    {% elif rental.payment_status == 'Ditinjau' %}
+                        <span class="badge bg-warning text-dark">Ditinjau</span>
                     {% endif %}
                 </div>
               </td>
 
-              <td class="text-end pe-4 align-top py-3">
-                <div class="d-flex justify-content-end gap-2">
+              <td class="pe-4 py-3 text-nowrap">
+                <div class="d-flex align-items-center">
                     
-                    <button type="button" class="btn btn-sm btn-light border" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#detailModal{{ rental.id }}"
-                            title="Detail">
-                        <i class="fas fa-eye text-dark"></i>
-                    </button>
+                    <div class="flex-grow-1 d-flex justify-content-center gap-2">
+                        {# ========================================
+                           HANYA TAMPIL JIKA BELUM SELESAI / BATAL
+                           ======================================== #}
+                        {% if rental.payment_status not in ['Selesai', 'Dibatalkan', 'Batal'] and rental.order_status != 'Ditolak' %}
 
-                    {% if rental.order_status == 'Ditinjau' %}
-                      <form method="POST" action="{{ url_for('admin.approve_rental', rental_id=rental.id) }}">
-                        <button class="btn btn-sm btn-success" title="Terima"><i class="fas fa-check"></i></button>
-                      </form>
-                      <form method="POST" action="{{ url_for('admin.reject_rental', rental_id=rental.id) }}">
-                        <button class="btn btn-sm btn-danger" title="Tolak"><i class="fas fa-times"></i></button>
-                      </form>
+                            {# ========================================
+                               TAHAP 1: REVIEW ORDER (TERIMA/TOLAK)
+                               ======================================== #}
+                            {% if rental.order_status == 'Ditinjau' %}
+                                <form method="POST" action="{{ url_for('admin.approve_rental', rental_id=rental.id) }}" class="m-0">
+                                    <button class="btn btn-sm btn-success shadow-sm" title="Terima Order">
+                                        <i class="fas fa-check"></i> Terima
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.reject_rental', rental_id=rental.id) }}" class="m-0">
+                                    <button class="btn btn-sm btn-danger shadow-sm" title="Tolak Order">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
 
-                    {% elif rental.order_status == 'ACC' %}
-                      
-                      {% if rental.payment_status == 'Menunggu Konfirmasi' %}
-                        <form method="POST" action="{{ url_for('admin.confirm_payment', rental_id=rental.id) }}">
-                          <button class="btn btn-sm btn-primary" title="Validasi Pembayaran">Validasi</button>
-                        </form>
+                            {# ========================================
+                               TAHAP 2A: TRANSFER - CEK BUKTI BAYAR
+                               ======================================== #}
+                            {% elif rental.payment_status == 'Menunggu Konfirmasi' and rental.payment_proof %}
+                                <form method="POST" action="{{ url_for('admin.confirm_payment', rental_id=rental.id) }}" class="m-0">
+                                    <button class="btn btn-sm btn-primary shadow-sm" title="Konfirmasi Bayar">
+                                        <i class="fas fa-check-double me-1"></i> Validasi Bayar
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.reject_rental', rental_id=rental.id) }}" class="m-0">
+                                    <button class="btn btn-sm btn-danger shadow-sm" title="Tolak Bukti">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
 
-                      {% elif rental.payment_status == 'Pengambilan' %}
-                        <form method="POST" action="{{ url_for('admin.mark_as_returned', rental_id=rental.id) }}">
-                          <button class="btn btn-sm btn-primary" title="Tandai Selesai">Selesai</button>
-                        </form>
+                            {# ========================================
+                               TAHAP 2B: CASH - KONFIRMASI BAYAR OFFLINE
+                               ======================================== #}
+                            {% elif rental.order_status == 'ACC' and rental.payment_status == 'Belum Bayar' %}
+                                <form method="POST" action="{{ url_for('admin.confirm_payment', rental_id=rental.id) }}" class="m-0">
+                                    <button class="btn btn-sm btn-outline-primary shadow-sm" title="Konfirmasi Cash">
+                                        <i class="fas fa-wallet me-1"></i> Cash
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin.reject_rental', rental_id=rental.id) }}" class="m-0">
+                                    <button class="btn btn-sm btn-outline-danger border-0" title="Batalkan">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
 
-                      {% endif %}
-                      
-                    {% endif %}
+                            {# ========================================
+                               TAHAP 3: SIAP DIAMBIL → TANDAI SELESAI
+                               ======================================== #}
+                            {% elif rental.payment_status == 'Pengambilan' %}
+                                <form method="POST" action="{{ url_for('admin.mark_as_returned', rental_id=rental.id) }}" class="m-0">
+                                    <button class="btn btn-sm btn-dark shadow-sm" title="Tandai Selesai">
+                                        <i class="fas fa-undo me-1"></i> Selesai (Balik)
+                                    </button>
+                                </form>
+
+                            {% endif %}
+
+                        {% endif %}
+                    </div>
+
+                    {# TOMBOL DETAIL - SELALU TAMPIL #}
+                    <div class="ms-auto">
+                        <button type="button" class="btn btn-sm btn-light border shadow-sm p-0 d-flex align-items-center justify-content-center" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#detailModal{{ rental.id }}"
+                                style="height: 31px; width: 38px;">
+                            <i class="fas fa-eye text-dark m-0"></i>
+                        </button>
+                    </div>
+
                 </div>
               </td>
             </tr>
 
+            {# MODAL DETAIL #}
             <div class="modal fade" id="detailModal{{ rental.id }}" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered modal-lg">
                     <div class="modal-content border-0 shadow">
@@ -205,11 +270,11 @@
                         <div class="modal-body p-4">
                             <h6 class="fw-bold mb-3 text-secondary">Barang Sewaan:</h6>
                             {% for rental_item in rental.items %}
-                            <div class="card mb-2 border">
+                            <div class="card mb-2 border shadow-sm">
                                 <div class="row g-0">
                                     <div class="col-2 bg-light d-flex align-items-center justify-content-center">
                                         <img src="{{ url_for('static', filename='uploads/items/' ~ rental_item.item.image_filename) }}" 
-                                             style="max-height: 50px;">
+                                             style="max-height: 50px; object-fit: contain;">
                                     </div>
                                     <div class="col-10">
                                         <div class="card-body py-2">
@@ -224,7 +289,7 @@
                             </div>
                             {% endfor %}
                             <div class="text-end mt-3 border-top pt-2">
-                                <h5 class="fw-bold">Total: Rp {{ "{:,.0f}".format(rental.total_price) }}</h5>
+                                <h5 class="fw-bold text-primary">Total: Rp {{ "{:,.0f}".format(rental.total_price) }}</h5>
                             </div>
                         </div>
                     </div>
@@ -232,57 +297,90 @@
             </div>
 
             {% endfor %}
-
           {% else %}
-            <tr class="no-result-row"><td colspan="5" class="text-center py-5 text-muted">Belum ada data.</td></tr>
+            <tr class="no-result-row"><td colspan="5" class="text-center py-5 text-muted">Belum ada data reservasi.</td></tr>
           {% endif %}
-          
-          <tr id="noSearchRow" style="display: none;">
-              <td colspan="5" class="text-center py-4 text-muted">
-                  <i class="fas fa-search fa-2x mb-3 text-secondary opacity-25"></i>
-                  <p>Tidak ditemukan hasil untuk pencarian tersebut.</p>
-              </td>
-          </tr>
-
           </tbody>
         </table>
       </div>
     </div>
-  </div>
 
-  {% if rentals and rentals.pages > 1 %}
-  <nav class="mt-4">
-    <ul class="pagination justify-content-center">
-      <li class="page-item {% if not rentals.has_prev %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for(base_endpoint, page=rentals.prev_num, status=status_filter) }}">Previous</a>
-      </li>
-      {% for p in range(1, rentals.pages + 1) %}
-        <li class="page-item {% if p == rentals.page %}active{% endif %}">
-          <a class="page-link" href="{{ url_for(base_endpoint, page=p, status=status_filter) }}">{{ p }}</a>
-        </li>
-      {% endfor %}
-      <li class="page-item {% if not rentals.has_next %}disabled{% endif %}">
-        <a class="page-link" href="{{ url_for(base_endpoint, page=rentals.next_num, status=status_filter) }}">Next</a>
-      </li>
-    </ul>
-  </nav>
-  {% endif %}
+    {# ========================================
+       PAGINATION CONTROLS (BARU!)
+       ======================================== #}
+    {% if rentals and rentals.pages > 1 %}
+    <div class="card-footer bg-light border-top">
+      <nav aria-label="Pagination">
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+          
+          {# Previous Button #}
+          <li class="page-item {% if not rentals.has_prev %}disabled{% endif %}">
+            {% if rentals.has_prev %}
+              <a class="page-link" href="{{ url_for(base_endpoint, page=rentals.prev_num, status=status_filter) }}">
+                <i class="fas fa-chevron-left"></i>
+              </a>
+            {% else %}
+              <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+            {% endif %}
+          </li>
+
+          {# Page Numbers #}
+          {% for page_num in rentals.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+            {% if page_num %}
+              <li class="page-item {% if page_num == rentals.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for(base_endpoint, page=page_num, status=status_filter) }}">{{ page_num }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled">
+                <span class="page-link">...</span>
+              </li>
+            {% endif %}
+          {% endfor %}
+
+          {# Next Button #}
+          <li class="page-item {% if not is_staff_dashboard and rentals.has_next %}{% else %}disabled{% endif %}">
+            {% if rentals.has_next %}
+              <a class="page-link" href="{{ url_for(base_endpoint, page=rentals.next_num, status=status_filter) }}">
+                <i class="fas fa-chevron-right"></i>
+              </a>
+            {% else %}
+              <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+            {% endif %}
+          </li>
+          
+        </ul>
+      </nav>
+
+      {# Info Halaman #}
+      <div class="text-center mt-2">
+        <small class="text-muted">
+          Halaman {{ rentals.page }} dari {{ rentals.pages }} 
+          ({{ rentals.total }} pesanan total)
+        </small>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
 
 </main>
 
+{# MODAL BUKTI BAYAR - HANYA UNTUK ADMIN #}
+{% if not is_staff_dashboard %}
 <div class="modal fade" id="proofModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
+    <div class="modal-content border-0 shadow">
       <div class="modal-header">
-        <h5 class="modal-title">Bukti Pembayaran</h5>
+        <h5 class="modal-title fw-bold">Bukti Pembayaran</h5>
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body text-center">
-        <img id="proofModalImg" src="" style="max-width:100%; border-radius:6px;">
+      <div class="modal-body text-center bg-light">
+        <img id="proofModalImg" src="" style="max-width:100%; max-height: 80vh; border-radius:6px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
       </div>
     </div>
   </div>
 </div>
+{% endif %}
 
 {% endblock %}
 
@@ -290,35 +388,20 @@
 {{ super() }}
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. LOGIC SEARCH BAR
+  // SEARCH FUNCTION
   const searchInput = document.getElementById('searchInput');
   const tableRows = document.querySelectorAll('.rental-row');
-  const noSearchRow = document.getElementById('noSearchRow');
-
   if(searchInput) {
       searchInput.addEventListener('keyup', function(e) {
           const term = e.target.value.toLowerCase();
-          let hasResult = false;
-
           tableRows.forEach(row => {
-              const searchText = row.innerText.toLowerCase();
-              if(searchText.includes(term)) {
-                  row.style.display = '';
-                  hasResult = true;
-              } else {
-                  row.style.display = 'none';
-              }
+              row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none';
           });
-
-          if(!hasResult && term !== '') {
-              noSearchRow.style.display = '';
-          } else {
-              noSearchRow.style.display = 'none';
-          }
       });
   }
 
-  // 2. LOGIC MODAL BUKTI
+  // PROOF MODAL - HANYA UNTUK ADMIN
+  {% if not is_staff_dashboard %}
   const modal = document.getElementById("proofModal");
   const modalImg = document.getElementById("proofModalImg");
   const modalTitle = modal ? modal.querySelector(".modal-title") : null;
@@ -328,9 +411,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (modalImg) modalImg.src = btn.dataset.img;
     if (modalTitle) modalTitle.textContent = btn.dataset.title;
   });
-  if (modal) {
-    modal.addEventListener("hidden.bs.modal", () => { if (modalImg) modalImg.src = ""; });
-  }
+  {% endif %}
 });
 </script>
 {% endblock %}

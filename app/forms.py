@@ -1,4 +1,3 @@
-# app/forms.py (FULL REPLACE - DENGAN FIELD PHONE)
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import (
@@ -87,31 +86,20 @@ class RegistrationForm(FlaskForm):
         validators=[DataRequired(message="Email is required."), Email(message="Please enter a valid email address.")],
     )
     
-    # --- TAMBAHAN FIELD PHONE ---
-    phone = StringField(
-        "WhatsApp Number (62...)",
-        validators=[
-            DataRequired(message="WhatsApp number is required."),
-            Length(min=10, max=15, message="Nomor HP harus antara 10-15 digit."),
-            Regexp(r'^[0-9]+$', message="Hanya boleh angka.")
-        ],
-    )
-    # ----------------------------
-
     password = PasswordField(
         "Password",
         validators=[
             DataRequired(message="Password is required."),
-            Length(min=8, max=72, message="Password must be between 8 and 72 characters."),
+            Length(min=8, max=72, message="Password minimal 8 karakter."),
             Regexp(
                 r"^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[\W_]).+$",
-                message="Must contain at least 1 uppercase, 1 lowercase, 1 number and 1 symbol.",
+                message="Minimal 8 karakter, 1 Huruf Besar, 1 Angka, 1 Simbol.",
             ),
         ],
     )
     confirm_password = PasswordField(
         "Confirm Password",
-        validators=[DataRequired(message="Please confirm your password."), EqualTo("password", message="Passwords must match.")],
+        validators=[DataRequired(message="Please confirm your password."), EqualTo("password", message="Password tidak cocok.")],
     )
     submit = SubmitField("Create Account")
 
@@ -152,7 +140,6 @@ class UpdateAccountForm(FlaskForm):
         validators=[DataRequired(message="Email is required."), Email(message="Please enter a valid email address.")],
     )
 
-    # --- TAMBAHAN FIELD PHONE ---
     phone = StringField(
         "WhatsApp Number (62...)",
         validators=[
@@ -161,7 +148,6 @@ class UpdateAccountForm(FlaskForm):
             Regexp(r'^[0-9]+$', message="Hanya boleh angka.")
         ],
     )
-    # ----------------------------
 
     picture = FileField(
         "Change Profile Picture",
@@ -186,7 +172,64 @@ class UpdateAccountForm(FlaskForm):
 
 
 # ------------------------------------------------------------------
-# 4. CATEGORY FORM
+# 4. CHANGE PASSWORD FORM
+# ------------------------------------------------------------------
+class ChangePasswordForm(FlaskForm):
+    old_password = PasswordField("Password Lama", validators=[DataRequired()])
+    new_password = PasswordField(
+        "Password Baru",
+        validators=[
+            DataRequired(),
+            Length(min=8, max=72),
+            Regexp(
+                r"^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[\W_]).+$",
+                message="Minimal 8 karakter, 1 Huruf Besar, 1 Angka, 1 Simbol.",
+            ),
+        ],
+    )
+    confirm_password = PasswordField(
+        "Konfirmasi Password",
+        validators=[DataRequired(), EqualTo("new_password", message="Password tidak sama.")],
+    )
+    submit = SubmitField("Simpan Password")
+
+
+# ------------------------------------------------------------------
+# 5. REQUEST RESET PASSWORD FORM (BARU)
+# ------------------------------------------------------------------
+class RequestResetForm(FlaskForm):
+    email = StringField('Email',
+                        validators=[DataRequired(message="Email wajib diisi."), 
+                                    Email(message="Masukkan format email yang benar.")])
+    submit = SubmitField('Minta Reset Password')
+
+    def validate_email(self, email):
+        user = User.query.filter_by(email=email.data).first()
+        if user is None:
+            raise ValidationError('Email tidak ditemukan. Silakan daftar akun terlebih dahulu.')
+
+
+# ------------------------------------------------------------------
+# 6. RESET PASSWORD FORM (BARU)
+# ------------------------------------------------------------------
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('Password Baru', 
+                             validators=[
+                                DataRequired(message="Password baru wajib diisi."),
+                                Length(min=8, max=72),
+                                Regexp(
+                                    r"^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[\W_]).+$",
+                                    message="Minimal 8 karakter, 1 Huruf Besar, 1 Angka, 1 Simbol.",
+                                )
+                             ])
+    confirm_password = PasswordField('Konfirmasi Password Baru',
+                                     validators=[DataRequired(message="Konfirmasi password wajib diisi."), 
+                                                 EqualTo('password', message="Konfirmasi password harus sama.")])
+    submit = SubmitField('Reset Password')
+
+
+# ------------------------------------------------------------------
+# 7. CATEGORY FORM
 # ------------------------------------------------------------------
 class CategoryForm(FlaskForm):
     name = StringField(
@@ -202,7 +245,7 @@ class CategoryForm(FlaskForm):
 
 
 # ------------------------------------------------------------------
-# 5. ITEM / PRODUCT FORM
+# 8. ITEM / PRODUCT FORM
 # ------------------------------------------------------------------
 class ItemForm(FlaskForm):
     category = SelectField("Category", choices=[], coerce=int, validators=[DataRequired(message="Category is required.")])
@@ -222,7 +265,7 @@ class ItemForm(FlaskForm):
 
 
 # ------------------------------------------------------------------
-# 6. CHECKOUT FORM
+# 9. CHECKOUT FORM
 # ------------------------------------------------------------------
 class CheckoutForm(FlaskForm):
     pickup_date = DateField("Pickup Date", validators=[DataRequired(message="Pickup date is required.")], format="%Y-%m-%d")
@@ -234,7 +277,7 @@ class CheckoutForm(FlaskForm):
 
 
 # ------------------------------------------------------------------
-# 7. ADD STAFF FORM
+# 10. ADD STAFF FORM
 # ------------------------------------------------------------------
 class AddStaffForm(FlaskForm):
     username = StringField("Staff Username", validators=[DataRequired(message="Username is required."), Length(min=2, max=20)])
@@ -254,15 +297,13 @@ class AddStaffForm(FlaskForm):
 
 
 # ------------------------------------------------------------------
-# 8. EDIT USER FORM (Admin)
+# 11. EDIT USER FORM (Admin)
 # ------------------------------------------------------------------
 class EditUserForm(FlaskForm):
     username = StringField("Username", validators=[DataRequired(), Length(min=2, max=20)])
     email = StringField("Email", validators=[DataRequired(), Email()])
     
-    # --- TAMBAHAN FIELD PHONE (Opsional buat Admin ngedit user) ---
     phone = StringField("WhatsApp", validators=[Length(min=10, max=15), Regexp(r'^[0-9]+$')])
-    # --------------------------------------------------------------
 
     role = SelectField("Role", choices=[("penyewa", "Penyewa"), ("staff", "Staff"), ("admin", "Admin")], validators=[DataRequired()])
     submit = SubmitField("Update User")
@@ -286,7 +327,7 @@ class EditUserForm(FlaskForm):
 
 
 # ------------------------------------------------------------------
-# 9. PAYMENT PROOF UPLOAD FORM
+# 12. PAYMENT PROOF UPLOAD FORM
 # ------------------------------------------------------------------
 class PaymentUploadForm(FlaskForm):
     proof = FileField(

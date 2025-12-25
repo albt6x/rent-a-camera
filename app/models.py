@@ -1,12 +1,14 @@
-# app/models.py (FULL REPLACE - SUDAH ADA KOLOM PHONE)
 import secrets
 from app import db
+from flask import current_app
 from flask_login import UserMixin
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+# Import untuk membuat token rahasia yang aman
+from itsdangerous import URLSafeTimedSerializer as Serializer
 
 # ==========================================================
-# TABEL 1: USERS (Admin, Staff, Penyewa) + 2FA Support
+# TABEL 1: USERS (Admin, Staff, Penyewa) + 2FA + RESET PASSWORD
 # ==========================================================
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
@@ -17,7 +19,6 @@ class User(db.Model, UserMixin):
     
     # --- KOLOM BARU: NOMOR HP (Untuk WhatsApp) ---
     phone = db.Column(db.String(20), nullable=True)
-    # ---------------------------------------------
 
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.Enum('penyewa', 'staff', 'admin'), nullable=False, default='penyewa')
@@ -27,10 +28,28 @@ class User(db.Model, UserMixin):
     otp_secret = db.Column(db.String(64), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     rentals = db.relationship('Rental', backref='borrower', lazy=True)
 
-    # Helpers
+    # ------------------------------------------------------------------
+    # FUNGSI TOKEN RESET PASSWORD (SOLUSI ERROR ATTRIBUTEERROR)
+    # ------------------------------------------------------------------
+    def get_reset_token(self):
+        """Menghasilkan token unik untuk reset password (berlaku 30 menit)"""
+        s = Serializer(current_app.config['SECRET_KEY'])
+        return s.dumps({'user_id': self.id})
+
+    @staticmethod
+    def verify_reset_token(token, expires_sec=1800):
+        """Memvalidasi token reset password"""
+        s = Serializer(current_app.config['SECRET_KEY'])
+        try:
+            user_id = s.loads(token, max_age=expires_sec)['user_id']
+        except Exception:
+            return None
+        return User.query.get(user_id)
+    # ------------------------------------------------------------------
+
+    # Helpers Password
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
         
@@ -78,7 +97,7 @@ class Item(db.Model):
 
 
 # ==========================================================
-# TABEL 4: RENTALS (Pesanan)
+# TABEL 4: RENTALS (Pesanan) - FIXED ENUM
 # ==========================================================
 class Rental(db.Model):
     __tablename__ = 'rentals'
@@ -94,10 +113,15 @@ class Rental(db.Model):
     
     order_status = db.Column(db.Enum('Ditinjau', 'ACC', 'Ditolak'), nullable=False, default='Ditinjau')
 
+    # ✅ FIXED: Tambah 'Menunggu Konfirmasi' dan 'Dibatalkan'
     payment_status = db.Column(
         db.Enum(
-            'Ditinjau', 'Belum Bayar', 'Menunggu Konfirmasi',
-            'Pengambilan', 'Selesai', 'Dibatalkan'
+            'Ditinjau',
+            'Belum Bayar',
+            'Menunggu Konfirmasi',  # ✅ TAMBAH INI (untuk bukti transfer)
+            'Pengambilan',
+            'Selesai',
+            'Dibatalkan'  # ✅ TAMBAH INI (untuk reject)
         ),
         nullable=False,
         default='Ditinjau'

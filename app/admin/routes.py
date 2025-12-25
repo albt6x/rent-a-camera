@@ -25,11 +25,7 @@ from datetime import timedelta
 import os
 
 # safer helpers from email_utils
-from app.email_utils import (
-    send_payment_confirmed_email,
-    send_order_rejected_email,
-    send_reservation_completed_email,
-)
+from app.utils import send_order_status_email # new
 
 # Buat blueprint
 admin_bp = Blueprint("admin", __name__)
@@ -64,8 +60,6 @@ def _safe_send_email(subject, recipients, text_body, html_body=None, sender=None
 
 # ==========================================================
 # DECORATORS WAJIB (ADMIN / STAFF / 2FA)
-# file: app/admin/routes.py
-# FULL REPLACE
 # ==========================================================
 
 from functools import wraps
@@ -363,7 +357,7 @@ def view_proof(rental_id):
 
 
 # ==========================================================
-# 8. APPROVE (ACC) RESERVASI  -> MODIFIED: send email to buyer
+# 8. APPROVE (ACC) RESERVASI - FIXED: CEK BUKTI BAYAR
 # ==========================================================
 @admin_bp.route("/reservations/approve/<int:rental_id>", methods=["POST"])
 @login_required
@@ -371,75 +365,35 @@ def view_proof(rental_id):
 def approve_rental(rental_id):
     rental = Rental.query.get_or_404(rental_id)
 
-    # cek stok
+    # Cek stok
     for item_in_rental in rental.items:
         item_db = item_in_rental.item
         if item_db.stock <= 0:
             flash(f"Gagal ACC: Stok untuk '{item_db.name}' sudah habis (0).", "danger")
             return redirect(url_for("admin.manage_reservations"))
 
-    # update stok
+    # Update stok
     for item_in_rental in rental.items:
-        item_db = item_in_rental.item
-        item_db.stock = item_db.stock - 1
+        item_in_rental.item.stock -= 1
 
-    # update status
+    # Update status order
     rental.order_status = "ACC"
-    rental.payment_status = "Belum Bayar"
-
+    
+    # ✅ FIX: CEK APAKAH USER SUDAH UPLOAD BUKTI
+    if rental.payment_proof:
+        # Jika sudah ada bukti → status jadi "Menunggu Konfirmasi"
+        rental.payment_status = "Menunggu Konfirmasi"
+        flash(f"✅ Reservasi #{rental.public_id} di-ACC. Bukti transfer perlu divalidasi.", "success")
+    else:
+        # Jika belum ada bukti → status "Belum Bayar" (cash)
+        rental.payment_status = "Belum Bayar"
+        flash(f"✅ Reservasi #{rental.public_id} di-ACC. Menunggu pembayaran cash.", "success")
+    
     db.session.commit()
-    flash(f"Reservasi #{rental.id} telah di-ACC. Stok barang telah dikurangi.", "success")
 
-    # --- kirim notifikasi email ke pembeli (buyer) ---
-    try:
-        buyer = User.query.get(rental.user_id)
-        if buyer and getattr(buyer, "email", None):
-            subject = f"[Rentalkuy] Pesanan #{rental.id} Telah Disetujui"
+    # Kirim email ACC
+    send_order_status_email(rental.borrower, rental, 'order_approved.html', 'Pesanan Disetujui')
 
-            # plain text fallback
-            body_lines = [
-                f"Halo {buyer.username if buyer else 'Pelanggan'},",
-                "",
-                f"Pesanan Anda (Order ID: {rental.id}) telah disetujui oleh admin.",
-                f"Tanggal Pengambilan: {rental.pickup_date}",
-                f"Status Pesanan: {rental.order_status}",
-                f"Status Pembayaran: {rental.payment_status}",
-                "",
-                "Detail item:",
-            ]
-            for ri in rental.items:
-                item = ri.item
-                body_lines.append(f"- {item.name} | Harga saat checkout: {ri.price_at_checkout}")
-            body_lines.append("")
-            body_lines.append("Silakan cek dashboard akun Anda untuk informasi lebih lanjut.")
-            body_lines.append("")
-            body_lines.append("Terima kasih,\nRentalkuy Team")
-
-            body = "\n".join(body_lines)
-
-            # try render html template for email (optional) -- keep this one in routes (you prefer)
-            html = None
-            try:
-                html = render_template(
-                    "emails/order_approved.html",
-                    rental=rental,
-                    buyer=buyer,
-                    borrower=buyer,  # safety: kirim juga borrower
-                    dashboard_url=(request.url_root or "").rstrip("/"),
-                    mail_footer=current_app.config.get("MAIL_FOOTER", "Rentalkuy · Jl. Con No.1 · 0896-7833-XXXX"),
-                )
-                current_app.logger.debug("order_approved HTML preview (trunc): %s", (html or "")[:1000])
-            except Exception:
-                current_app.logger.exception("Gagal merender template order_approved.html untuk rental %s", rental.id)
-                html = None
-
-            # send using safe helper
-            _safe_send_email(subject, [buyer.email], body, html_body=html)
-
-    except Exception:
-        current_app.logger.exception("Error saat menyiapkan email buyer untuk rental %s", rental.id)
-
-    # redirect
     if current_user.role == "staff":
         return redirect(url_for("staff.dashboard"))
     return redirect(url_for("admin.manage_reservations"))
@@ -453,65 +407,30 @@ def approve_rental(rental_id):
 @staff_or_admin_required
 def reject_rental(rental_id):
     """
-    Clear, robust implementation that:
-     - updates rental state
-     - tries the centralized helper send_order_rejected_email first
-     - if helper returns False or raises, falls back to safe inline send (_safe_send_email)
-     - logs failures but never raises to the user flow
+    TOLAK ORDER / BUKTI BAYAR
+    - Kembalikan stok jika sudah dipotong
+    - Set status → Ditolak / Dibatalkan
     """
     rental = Rental.query.get_or_404(rental_id)
-    rental.order_status = "Ditolak"
-    rental.payment_status = "Dibatalkan"
+
+    # Kembalikan stok (jika order sudah di-ACC sebelumnya)
+    if rental.order_status == 'ACC':
+        for item_in_rental in rental.items:
+            item_in_rental.item.stock += 1
+
+    # Update status
+    rental.order_status = 'Ditolak'
+    rental.payment_status = 'Dibatalkan'
     db.session.commit()
-    flash(f"Reservasi #{rental.id} telah Ditolak.", "warning")
 
-    borrower = getattr(rental, "borrower", None)
-    if borrower and getattr(borrower, "email", None):
-        reason_text = request.form.get("reason", None)
-        try:
-            sent_ok = False
-            # Primary: use centralized helper from app.email_utils
-            try:
-                # helper may accept (rental, borrower, reason) — try that first
-                sent_ok = send_order_rejected_email(rental, borrower, reason=reason_text)
-            except TypeError:
-                # fallback if helper signature different
-                try:
-                    sent_ok = send_order_rejected_email(rental, borrower)
-                except Exception:
-                    sent_ok = False
-            except Exception:
-                # other exceptions from helper
-                current_app.logger.exception("send_order_rejected_email raised while sending for rental %s", rental.id)
-                sent_ok = False
+    # Kirim email penolakan
+    try:
+        from app.email_utils import send_order_rejected_email
+        send_order_rejected_email(rental, rental.borrower, reason="Pesanan ditolak oleh admin.", force_send=False)
+    except Exception as e:
+        current_app.logger.error(f"Gagal kirim email order_rejected: {e}")
 
-            # If helper didn't send (returned False or None), use inline fallback
-            if not sent_ok:
-                subject = f"[Rentalkuy] Pesanan #{rental.id} Ditolak"
-                body = (
-                    f"Halo {borrower.username if borrower else 'Pelanggan'},\n\n"
-                    f"Pesanan #{getattr(rental, 'public_id', rental.id)} telah ditolak. Jika ingin mengajukan ulang, silakan hubungi admin.\n\n"
-                    "Terima kasih,\nRentalkuy"
-                )
-
-                html_fallback = None
-                try:
-                    html_fallback = render_template(
-                        "emails/order_rejected.html",
-                        rental=rental,
-                        borrower=borrower,
-                        buyer=borrower,
-                        reason=reason_text,
-                        dashboard_url=(request.url_root or "").rstrip("/"),
-                        mail_footer=current_app.config.get("MAIL_FOOTER", "Rentalkuy · Jl. Contoh No.1 · 0896-7833-XXXX"),
-                    )
-                except Exception:
-                    current_app.logger.exception("Gagal merender order_rejected.html untuk fallback (rental %s)", rental.id)
-                    html_fallback = None
-
-                _safe_send_email(subject, [borrower.email], body, html_body=html_fallback)
-        except Exception:
-            current_app.logger.exception("Gagal mengirim email penolakan untuk rental %s", rental.id)
+    flash(f'❌ Order #{rental.public_id} telah ditolak. Stok dikembalikan.', 'info')
 
     if current_user.role == "staff":
         return redirect(url_for("staff.dashboard"))
@@ -650,26 +569,36 @@ def calendar_data():
 
 
 # ==========================================================
-# 15. KONFIRMASI PEMBAYARAN (USE email_utils helper) - CLEAN
+# 15. KONFIRMASI PEMBAYARAN (VALIDASI BUKTI / CASH)
 # ==========================================================
 @admin_bp.route("/reservations/confirm_payment/<int:rental_id>", methods=["POST"])
 @login_required
 @staff_or_admin_required
 def confirm_payment(rental_id):
+    """
+    VALIDASI PEMBAYARAN (Transfer atau Cash)
+    - Jika ada payment_proof → Validasi bukti transfer
+    - Jika tidak ada → Konfirmasi cash/offline
+    """
     rental = Rental.query.get_or_404(rental_id)
 
-    rental.payment_status = "Pengambilan"
+    # Pastikan order sudah di-ACC
+    if rental.order_status != 'ACC':
+        flash('Order belum di-ACC, tidak bisa validasi pembayaran.', 'warning')
+        return redirect(url_for('admin.manage_reservations'))
+
+    # Update status → PENGAMBILAN (siap diambil)
+    rental.payment_status = 'Pengambilan'
     db.session.commit()
 
-    flash(f"Pembayaran untuk Reservasi #{rental.id} telah dikonfirmasi.", "success")
+    # Kirim email konfirmasi
+    try:
+        from app.email_utils import send_payment_confirmed_email
+        send_payment_confirmed_email(rental, rental.borrower, force_send=False)
+    except Exception as e:
+        current_app.logger.error(f"Gagal kirim email payment_confirmed: {e}")
 
-    borrower = getattr(rental, "borrower", None)
-    if borrower and getattr(borrower, "email", None):
-        try:
-            # central safe helper does rendering/sending
-            send_payment_confirmed_email(rental, borrower)
-        except Exception:
-            current_app.logger.exception("Gagal mengirim email konfirmasi pembayaran untuk rental %s", rental.id)
+    flash(f'✅ Pembayaran untuk order #{rental.public_id} telah dikonfirmasi. Barang siap diambil!', 'success')
 
     if current_user.role == "staff":
         return redirect(url_for("staff.dashboard"))
@@ -677,7 +606,48 @@ def confirm_payment(rental_id):
 
 
 # ==========================================================
-# 16. TANDAI DIAMBIL
+# 16. TANDAI SELESAI (BARANG DIKEMBALIKAN)
+# ==========================================================
+@admin_bp.route("/reservations/mark_returned/<int:rental_id>", methods=["POST"])
+@login_required
+@staff_or_admin_required
+def mark_as_returned(rental_id):
+    """
+    TANDAI SELESAI (Barang sudah dikembalikan)
+    - Update status → Selesai
+    - Kembalikan stok
+    """
+    rental = Rental.query.get_or_404(rental_id)
+
+    # Pastikan sudah dalam status Pengambilan
+    if rental.payment_status != 'Pengambilan':
+        flash('Order belum dalam status "Siap Diambil".', 'warning')
+        return redirect(url_for('admin.manage_reservations'))
+
+    # Kembalikan stok
+    for item_in_rental in rental.items:
+        item_in_rental.item.stock += 1
+
+    # Update status
+    rental.payment_status = 'Selesai'
+    db.session.commit()
+
+    # Kirim email selesai
+    try:
+        from app.email_utils import send_reservation_completed_email
+        send_reservation_completed_email(rental, rental.borrower, force_send=False)
+    except Exception as e:
+        current_app.logger.error(f"Gagal kirim email reservation_completed: {e}")
+
+    flash(f'✅ Order #{rental.public_id} telah selesai. Stok dikembalikan.', 'success')
+
+    if current_user.role == "staff":
+        return redirect(url_for("staff.dashboard"))
+    return redirect(url_for("admin.manage_reservations"))
+
+
+# ==========================================================
+# 17. TANDAI DIAMBIL (LEGACY - OPTIONAL)
 # ==========================================================
 @admin_bp.route("/reservations/take/<int:rental_id>", methods=["POST"])
 @login_required
@@ -688,47 +658,17 @@ def mark_as_taken(rental_id):
     rental.payment_status = "Pengambilan"
     db.session.commit()
 
-    flash(f"Reservasi #{rental.id} telah diambil oleh penyewa.", "info")
+    flash(f"Reservasi #{rental.public_id} telah diambil oleh penyewa.", "info")
 
     borrower = rental.borrower
     if borrower and getattr(borrower, "email", None):
-        subject = f"[Rentalkuy] Reservasi #{rental.id} - Siap Diambil"
+        subject = f"[Rentalkuy] Reservasi #{rental.public_id} - Siap Diambil"
         body = (
             f"Halo {borrower.username},\n\n"
-            f"Reservasi #{rental.id} sudah siap diambil.\n\n"
+            f"Reservasi #{rental.public_id} sudah siap diambil.\n\n"
             "Terima kasih,\nRentalkuy"
         )
         _safe_send_email(subject, [borrower.email], body)
-
-    if current_user.role == "staff":
-        return redirect(url_for("staff.dashboard"))
-    return redirect(url_for("admin.manage_reservations"))
-
-
-# ==========================================================
-# 17. TANDAI SELESAI / KEMBALI (USE email_utils helper)
-# ==========================================================
-@admin_bp.route("/reservations/return/<int:rental_id>", methods=["POST"])
-@login_required
-@staff_or_admin_required
-def mark_as_returned(rental_id):
-    rental = Rental.query.get_or_404(rental_id)
-
-    for item_in_rental in rental.items:
-        item_db = item_in_rental.item
-        item_db.stock = item_db.stock + 1  # Kembalikan stok
-
-    rental.payment_status = "Selesai"
-    db.session.commit()
-
-    flash(f"Reservasi #{rental.id} telah Selesai. Stok barang telah dikembalikan.", "success")
-
-    borrower = rental.borrower
-    if borrower and getattr(borrower, "email", None):
-        try:
-            send_reservation_completed_email(rental, borrower)
-        except Exception:
-            current_app.logger.exception("Gagal mengirim email selesai reservasi untuk rental %s", rental.id)
 
     if current_user.role == "staff":
         return redirect(url_for("staff.dashboard"))

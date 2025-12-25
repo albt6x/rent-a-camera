@@ -1,4 +1,3 @@
-{# app/templates/auth/register.html (FULL REPLACE) #}
 {% extends "base.html" %}
 
 {% block title %}Daftar Akun - Rental Kamera{% endblock %}
@@ -16,15 +15,29 @@
                      class="rounded-circle shadow-sm" style="object-fit: cover;">
             </div>
 
-            <div class="card shadow-sm">
+            <div class="card shadow-sm border-0">
                 <div class="card-body p-4 p-md-5">
-                    <h2 class="text-center mb-4">Buat Akun Baru</h2>
+                    <h2 class="text-center mb-4 fw-bold">Buat Akun Baru</h2>
+                    
+                    {# --- BLOK ERROR GLOBAL --- #}
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <ul class="mb-0 small">
+                                {% for field, errors in form.errors.items() %}
+                                    {% for error in errors %}
+                                        <li><strong>{{ field|capitalize }}:</strong> {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
                     
                     <form method="POST" action="">
                         {{ form.hidden_tag() }}
 
+                        {# --- FIELD 1: USERNAME --- #}
                         <div class="mb-3">
-                            <label for="{{ form.username.id }}" class="form-label">Nama Pengguna</label>
+                            <label for="{{ form.username.id }}" class="form-label fw-bold">Nama Pengguna</label>
                             <div class="input-group has-validation">
                                 {{ form.username(class="form-control form-control-lg" + (" is-invalid" if form.username.errors else "")) }}
                                 {% if form.username.errors %}
@@ -37,8 +50,9 @@
                             </div>
                         </div>
 
+                        {# --- FIELD 2: EMAIL --- #}
                         <div class="mb-3">
-                            <label for="{{ form.email.id }}" class="form-label">Email</label>
+                            <label for="{{ form.email.id }}" class="form-label fw-bold">Email</label>
                             <div class="input-group has-validation">
                                 {{ form.email(class="form-control form-control-lg" + (" is-invalid" if form.email.errors else "")) }}
                                 {% if form.email.errors %}
@@ -51,11 +65,12 @@
                             </div>
                         </div>
                         
+                        {# --- FIELD 3: PASSWORD (BERSIH - ERROR MUNCUL HANYA KALAU SALAH) --- #}
                         <div class="mb-3">
-                            <label for="{{ form.password.id }}" class="form-label">Kata Sandi</label>
+                            <label for="{{ form.password.id }}" class="form-label fw-bold">Kata Sandi</label>
                             <div class="input-group has-validation">
                                 {{ form.password(class="form-control form-control-lg" + (" is-invalid" if form.password.errors else ""), id="password") }}
-                                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="#password" aria-label="Tampilkan / sembunyikan kata sandi">
+                                <button class="btn btn-outline-secondary btn-lg toggle-password" type="button" data-target="#password">
                                     <i class="bi bi-eye-fill"></i>
                                 </button>
                                 {% if form.password.errors %}
@@ -66,13 +81,15 @@
                                     </div>
                                 {% endif %}
                             </div>
+                            {# TEKS STATIS SAYA HAPUS DARI SINI #}
                         </div>
 
+                        {# --- FIELD 4: CONFIRM PASSWORD --- #}
                         <div class="mb-3">
-                            <label for="{{ form.confirm_password.id }}" class="form-label">Konfirmasi Kata Sandi</label>
+                            <label for="{{ form.confirm_password.id }}" class="form-label fw-bold">Konfirmasi Kata Sandi</label>
                             <div class="input-group has-validation">
                                 {{ form.confirm_password(class="form-control form-control-lg" + (" is-invalid" if form.confirm_password.errors else ""), id="confirm_password") }}
-                                <button class="btn btn-outline-secondary toggle-password" type="button" data-target="#confirm_password" aria-label="Tampilkan / sembunyikan konfirmasi kata sandi">
+                                <button class="btn btn-outline-secondary btn-lg toggle-password" type="button" data-target="#confirm_password">
                                     <i class="bi bi-eye-fill"></i>
                                 </button>
                                 {% if form.confirm_password.errors %}
@@ -86,15 +103,15 @@
                         </div>
 
                         <div class="d-grid mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg">Buat Akun</button>
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold">Buat Akun</button>
                         </div>
                     </form>
                     
-                    <hr>
+                    <hr class="my-4">
                     <div class="text-center">
                         <small class="text-muted">
                             Sudah punya akun?
-                            <a href="{{ url_for('auth.login') }}" class="ms-2">Masuk di sini</a>
+                            <a href="{{ url_for('auth.login') }}" class="ms-1 fw-bold">Masuk di sini</a>
                         </small>
                     </div>
                 </div>

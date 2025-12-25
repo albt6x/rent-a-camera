@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{# PENTING: Judul ini harus sama dengan kondisi di base.html tadi #}
+{% block title %}Reset Password{% endblock %}
+
+{% block content %}
+<main class="container d-flex align-items-center justify-content-center" style="min-height: 100vh;">
+    <div class="row justify-content-center w-100">
+        <div class="col-md-5">
+            
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-md-5">
+                    <h2 class="text-center mb-4 fw-bold">Lupa Password</h2>
+                    
+                    <p class="text-muted text-center mb-4">
+                        Masukkan alamat email Anda dan kami akan mengirimkan tautan untuk mereset password.
+                    </p>
+
+                    <form method="POST" action="">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-4">
+                            <label for="{{ form.email.id }}" class="form-label fw-bold">Email Akun</label>
+                            {{ form.email(class="form-control form-control-lg" + (" is-invalid" if form.email.errors else ""), placeholder="enirikee@gmail.com") }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.email.errors %}
+                                        <span>{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg fw-bold">Kirim Link Reset</button>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('auth.login') }}" class="text-decoration-none small fw-bold text-muted">
+                            <i class="bi bi-arrow-left"></i> Kembali ke Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock content %}
